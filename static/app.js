@@ -13,10 +13,12 @@ class SongVoter {
 
         this.audio = new Audio();
         this.isPlaying = false;
+        this.isCasting = false;
 
         this.initElements();
         this.initEventListeners();
         this.initAudioListeners();
+        this.initCasting();
     }
 
     initElements() {
@@ -31,6 +33,7 @@ class SongVoter {
         this.songName = document.getElementById('songName');
         this.playBtn = document.getElementById('playBtn');
         this.skipBtn = document.getElementById('skipBtn');
+        this.castBtn = document.getElementById('castBtn');
         this.progressBar = document.getElementById('progressBar');
         this.progressFill = document.getElementById('progressFill');
         this.currentTime = document.getElementById('currentTime');
@@ -59,6 +62,10 @@ class SongVoter {
         this.thumbDownBtn.addEventListener('click', () => this.setThumb(false));
         this.ratingSlider.addEventListener('input', () => this.updateRating());
         this.submitBtn.addEventListener('click', () => this.submitVote());
+
+        if (this.castBtn) {
+            this.castBtn.addEventListener('click', () => this.toggleCast());
+        }
     }
 
     initAudioListeners() {
@@ -73,6 +80,91 @@ class SongVoter {
             this.isPlaying = false;
             this.playBtn.textContent = '▶';
         });
+    }
+
+    // Remote Playback API for casting
+    initCasting() {
+        // Check if Remote Playback API is supported
+        if (!('remote' in HTMLMediaElement.prototype)) {
+            console.log('Remote Playback API not supported');
+            if (this.castBtn) {
+                this.castBtn.style.display = 'none';
+            }
+            return;
+        }
+
+        // Watch for device availability
+        this.audio.remote.watchAvailability((available) => {
+            if (this.castBtn) {
+                this.castBtn.style.display = available ? 'flex' : 'none';
+                this.castBtn.disabled = !available;
+            }
+        }).catch((error) => {
+            console.log('Remote playback availability watching failed:', error);
+            if (this.castBtn) {
+                // Still show the button - let user try
+                this.castBtn.style.display = 'flex';
+            }
+        });
+
+        // Listen for connection state changes
+        this.audio.remote.addEventListener('connecting', () => {
+            this.showFeedback('Connecting to device...');
+            if (this.castBtn) this.castBtn.classList.add('connecting');
+        });
+
+        this.audio.remote.addEventListener('connect', () => {
+            this.isCasting = true;
+            this.showFeedback('Connected to cast device');
+            if (this.castBtn) {
+                this.castBtn.classList.remove('connecting');
+                this.castBtn.classList.add('casting');
+            }
+        });
+
+        this.audio.remote.addEventListener('disconnect', () => {
+            this.isCasting = false;
+            this.showFeedback('Disconnected from cast device');
+            if (this.castBtn) {
+                this.castBtn.classList.remove('connecting', 'casting');
+            }
+        });
+    }
+
+    async toggleCast() {
+        if (!this.audio.remote) {
+            this.showFeedback('Casting not supported', true);
+            return;
+        }
+
+        try {
+            if (this.isCasting) {
+                // Disconnect
+                await this.audio.remote.cancelWatchAvailability();
+                this.audio.pause();
+                // Reload audio to disconnect
+                const currentTime = this.audio.currentTime;
+                this.audio.load();
+                this.audio.currentTime = currentTime;
+                this.isCasting = false;
+                if (this.castBtn) {
+                    this.castBtn.classList.remove('casting');
+                }
+            } else {
+                // Request connection - this shows the device picker
+                await this.audio.remote.prompt();
+            }
+        } catch (error) {
+            if (error.name === 'NotSupportedError') {
+                this.showFeedback('No cast devices found', true);
+            } else if (error.name === 'NotAllowedError') {
+                // User cancelled the prompt
+                console.log('User cancelled cast prompt');
+            } else {
+                console.error('Cast error:', error);
+                this.showFeedback('Cast failed: ' + error.message, true);
+            }
+        }
     }
 
     async scanSongs() {
@@ -165,7 +257,9 @@ class SongVoter {
 
     loadSong(song) {
         this.songName.textContent = song.base_name;
-        this.audio.src = `/api/songs/${song.id}/audio`;
+        // Use absolute URL for casting compatibility
+        const audioUrl = new URL(`/api/songs/${song.id}/audio`, window.location.origin).href;
+        this.audio.src = audioUrl;
         this.audio.load();
         this.audio.play();
     }
@@ -268,7 +362,7 @@ class SongVoter {
 
     showFeedback(message, isError = false) {
         this.feedback.textContent = message;
-        this.feedback.style.background = isError ? '#e94560' : '#4ecca3';
+        this.feedback.style.background = isError ? 'var(--danger)' : 'var(--bg-card)';
         this.feedback.classList.add('show');
 
         setTimeout(() => {

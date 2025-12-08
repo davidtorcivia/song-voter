@@ -247,6 +247,35 @@ label {
     gap: 16px;
 }
 
+/* Cast Button */
+.cast-btn {
+    font-size: 1rem;
+    display: none;
+    /* Hidden by default, shown when devices available */
+}
+
+.cast-btn.connecting {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.cast-btn.casting {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg-primary);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 .volume-control {
     display: flex;
     align-items: center;
