@@ -11,7 +11,8 @@ class SongVoter {
         this.thumbsValue = null;
         this.ratingValue = 5;
 
-        this.audio = new Audio();
+        // Use HTML audio element for Airplay support
+        this.audio = document.getElementById('audioPlayer') || new Audio();
         this.isPlaying = false;
         this.isCasting = false;
 
@@ -19,6 +20,9 @@ class SongVoter {
         this.initEventListeners();
         this.initAudioListeners();
         this.initCasting();
+
+        // Auto-load songs on startup
+        this.autoLoadSongs();
     }
 
     initElements() {
@@ -27,6 +31,7 @@ class SongVoter {
         this.modeSelect = document.getElementById('modeSelect');
         this.startBtn = document.getElementById('startBtn');
         this.setupSection = document.getElementById('setupSection');
+        this.loadingIndicator = document.getElementById('loadingIndicator');
 
         // Player
         this.playerSection = document.getElementById('playerSection');
@@ -52,7 +57,9 @@ class SongVoter {
     }
 
     initEventListeners() {
-        this.scanBtn.addEventListener('click', () => this.scanSongs());
+        if (this.scanBtn) {
+            this.scanBtn.addEventListener('click', () => this.scanSongs());
+        }
         this.startBtn.addEventListener('click', () => this.startVoting());
         this.playBtn.addEventListener('click', () => this.togglePlay());
         this.skipBtn.addEventListener('click', () => this.skipSong());
@@ -64,7 +71,7 @@ class SongVoter {
         this.submitBtn.addEventListener('click', () => this.submitVote());
 
         if (this.castBtn) {
-            this.castBtn.addEventListener('click', () => this.toggleCast());
+            this.castBtn.addEventListener('click', () => this.promptCast());
         }
     }
 
@@ -82,22 +89,20 @@ class SongVoter {
         });
     }
 
-    // Remote Playback API for casting
+    // Remote Playback API for casting (Chromecast)
     initCasting() {
         // Check if Remote Playback API is supported
         if (!('remote' in HTMLMediaElement.prototype)) {
             console.log('Remote Playback API not supported');
-            if (this.castBtn) {
-                this.castBtn.style.display = 'none';
-            }
+            // Still show button for potential Airplay support via native controls
             return;
         }
 
         // Watch for device availability
         this.audio.remote.watchAvailability((available) => {
             if (this.castBtn) {
-                this.castBtn.style.display = available ? 'flex' : 'none';
-                this.castBtn.disabled = !available;
+                this.castBtn.style.display = 'flex';
+                // Always enabled - let user try even if no devices detected
             }
         }).catch((error) => {
             console.log('Remote playback availability watching failed:', error);
@@ -109,13 +114,13 @@ class SongVoter {
 
         // Listen for connection state changes
         this.audio.remote.addEventListener('connecting', () => {
-            this.showFeedback('Connecting to device...');
+            this.showFeedback('Connecting...');
             if (this.castBtn) this.castBtn.classList.add('connecting');
         });
 
         this.audio.remote.addEventListener('connect', () => {
             this.isCasting = true;
-            this.showFeedback('Connected to cast device');
+            this.showFeedback('Connected');
             if (this.castBtn) {
                 this.castBtn.classList.remove('connecting');
                 this.castBtn.classList.add('casting');
@@ -124,52 +129,87 @@ class SongVoter {
 
         this.audio.remote.addEventListener('disconnect', () => {
             this.isCasting = false;
-            this.showFeedback('Disconnected from cast device');
+            this.showFeedback('Disconnected');
             if (this.castBtn) {
                 this.castBtn.classList.remove('connecting', 'casting');
             }
         });
     }
 
-    async toggleCast() {
+    // Always show device picker (allows switching devices)
+    async promptCast() {
         if (!this.audio.remote) {
             this.showFeedback('Casting not supported', true);
             return;
         }
 
         try {
-            if (this.isCasting) {
-                // Disconnect
-                await this.audio.remote.cancelWatchAvailability();
-                this.audio.pause();
-                // Reload audio to disconnect
-                const currentTime = this.audio.currentTime;
-                this.audio.load();
-                this.audio.currentTime = currentTime;
-                this.isCasting = false;
-                if (this.castBtn) {
-                    this.castBtn.classList.remove('casting');
-                }
-            } else {
-                // Request connection - this shows the device picker
-                await this.audio.remote.prompt();
-            }
+            // Always prompt - this allows switching to a different device
+            await this.audio.remote.prompt();
         } catch (error) {
             if (error.name === 'NotSupportedError') {
                 this.showFeedback('No cast devices found', true);
             } else if (error.name === 'NotAllowedError') {
-                // User cancelled the prompt
+                // User cancelled the prompt - that's fine
                 console.log('User cancelled cast prompt');
+            } else if (error.name === 'InvalidStateError') {
+                // Already connected - prompt again to switch
+                try {
+                    await this.audio.remote.prompt();
+                } catch (e) {
+                    console.log('Could not switch devices:', e);
+                }
             } else {
                 console.error('Cast error:', error);
-                this.showFeedback('Cast failed: ' + error.message, true);
+                this.showFeedback('Cast failed', true);
             }
         }
     }
 
+    // Auto-load songs when page loads
+    async autoLoadSongs() {
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = 'block';
+        }
+        if (this.scanBtn) {
+            this.scanBtn.style.display = 'none';
+        }
+
+        try {
+            // First try to get existing songs from API
+            const response = await fetch('/api/songs');
+            const data = await response.json();
+
+            if (data.songs && data.songs.length > 0) {
+                this.songs = data.songs;
+                // Get base names
+                const baseNamesResponse = await fetch('/api/base-names');
+                const baseNamesData = await baseNamesResponse.json();
+                this.baseNames = baseNamesData.base_names || [];
+                this.populateModeSelect();
+                this.startBtn.disabled = false;
+            } else {
+                // No songs in DB, do a scan
+                await this.scanSongs();
+            }
+        } catch (err) {
+            console.error('Auto-load failed:', err);
+            // Fall back to showing scan button
+            if (this.scanBtn) {
+                this.scanBtn.style.display = 'block';
+            }
+        }
+
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = 'none';
+        }
+    }
+
     async scanSongs() {
-        this.scanBtn.disabled = true;
-        this.scanBtn.textContent = 'Scanning...';
+        if (this.scanBtn) {
+            this.scanBtn.disabled = true;
+            this.scanBtn.textContent = 'Scanning...';
+        }
 
         try {
             const response = await fetch('/api/scan', { method: 'POST' });
@@ -179,8 +219,12 @@ class SongVoter {
                 this.songs = data.songs;
                 this.baseNames = data.base_names;
                 this.populateModeSelect();
-                this.showFeedback(`Found ${data.count} songs!`);
-                this.startBtn.disabled = false;
+                if (data.count > 0) {
+                    this.showFeedback(`Found ${data.count} songs`);
+                    this.startBtn.disabled = false;
+                } else {
+                    this.showFeedback('No songs found', true);
+                }
             } else {
                 this.showFeedback(data.error || 'Scan failed', true);
             }
@@ -189,8 +233,10 @@ class SongVoter {
             console.error(err);
         }
 
-        this.scanBtn.disabled = false;
-        this.scanBtn.textContent = 'Scan Songs';
+        if (this.scanBtn) {
+            this.scanBtn.disabled = false;
+            this.scanBtn.textContent = 'Rescan';
+        }
     }
 
     populateModeSelect() {
@@ -312,9 +358,7 @@ class SongVoter {
     }
 
     onSongEnd() {
-        // Auto-advance if already voted, otherwise wait
-        // For now, always advance
-        // this.playNext();
+        // Song ended - wait for user to vote or skip
     }
 
     setThumb(isUp) {
@@ -347,13 +391,13 @@ class SongVoter {
             const data = await response.json();
 
             if (data.success) {
-                this.showFeedback('Vote recorded!');
+                this.showFeedback('Saved');
                 this.playNext();
             } else {
                 this.showFeedback(data.error || 'Vote failed', true);
             }
         } catch (err) {
-            this.showFeedback('Error submitting vote', true);
+            this.showFeedback('Error', true);
             console.error(err);
         }
 
@@ -367,7 +411,7 @@ class SongVoter {
 
         setTimeout(() => {
             this.feedback.classList.remove('show');
-        }, 2000);
+        }, 1500);
     }
 }
 

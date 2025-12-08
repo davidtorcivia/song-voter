@@ -14,25 +14,27 @@
 
         <!-- Setup Section -->
         <div id="setupSection" class="card setup-section">
-            <div>
-                <label>Step 1: Load Songs</label>
+            <div id="loadingIndicator" class="loading" style="display: none;">Loading songs</div>
+
+            <div id="scanSection" style="display: none;">
+                <label>Songs</label>
                 <button id="scanBtn" class="btn btn-primary" style="width: 100%;">
-                    Scan Songs Folder
+                    Scan Folder
                 </button>
             </div>
 
             <div>
-                <label for="modeSelect">Step 2: Choose Mode</label>
+                <label for="modeSelect">Mode</label>
                 <select id="modeSelect">
                     <option value="all">All Songs (Shuffled)</option>
                 </select>
             </div>
 
             <button id="startBtn" class="btn btn-success" disabled style="width: 100%;">
-                Start Voting ▶
+                Begin ▶
             </button>
 
-            <a href="/results" class="nav-link" style="margin-top: 8px;">◈ View Results</a>
+            <a href="/results" class="nav-link">◈ Results</a>
         </div>
 
         <!-- Player Section -->
@@ -61,8 +63,7 @@
 
                         <button id="playBtn" class="btn btn-icon btn-primary">▶</button>
                         <button id="skipBtn" class="btn btn-icon btn-secondary">⏭</button>
-                        <button id="castBtn" class="btn btn-icon btn-secondary cast-btn"
-                            title="Cast to device">⌘</button>
+                        <button id="castBtn" class="btn btn-icon btn-secondary cast-btn" title="Cast">⌘</button>
                     </div>
                 </div>
             </div>
@@ -76,29 +77,31 @@
 
                 <div class="rating-container">
                     <div class="rating-label">
-                        Rating: <span class="rating-value" id="ratingValue">5</span>/10
+                        <span class="rating-value" id="ratingValue">5</span>
                     </div>
                     <input type="range" id="ratingSlider" class="rating-slider" min="1" max="10" value="5">
                     <div class="rating-labels">
                         <span>1</span>
-                        <span>5</span>
                         <span>10</span>
                     </div>
                 </div>
 
                 <div class="action-buttons">
                     <button id="submitBtn" class="btn btn-success">
-                        Submit & Next ✓
+                        Next →
                     </button>
                 </div>
             </div>
 
-            <a href="/results" class="nav-link">View Results →</a>
+            <a href="/results" class="nav-link">◈ Results</a>
         </div>
 
         <!-- Feedback Toast -->
         <div id="feedback" class="feedback"></div>
     </div>
+
+    <!-- Audio element with Airplay support -->
+    <audio id="audioPlayer" x-webkit-airplay="allow" style="display: none;"></audio>
 
     <script src="/static/app.js"></script>
 </body>
