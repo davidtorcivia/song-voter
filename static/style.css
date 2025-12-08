@@ -126,6 +126,11 @@ h1 {
     padding: 0;
     font-size: 1.25rem;
     border-radius: 50%;
+    line-height: 1;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-success {
@@ -337,10 +342,13 @@ label {
     border: 1px solid var(--border);
     cursor: pointer;
     transition: var(--transition);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     color: var(--text-primary);
+    line-height: 1;
+    text-align: center;
+    padding-top: 2px;
 }
 
 .thumb-btn:hover {

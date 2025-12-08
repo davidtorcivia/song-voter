@@ -81,7 +81,7 @@ class SongVoter {
         this.audio.addEventListener('ended', () => this.onSongEnd());
         this.audio.addEventListener('play', () => {
             this.isPlaying = true;
-            this.playBtn.textContent = '⏸';
+            this.playBtn.textContent = '❙❙';
         });
         this.audio.addEventListener('pause', () => {
             this.isPlaying = false;
