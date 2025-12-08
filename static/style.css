@@ -1,4 +1,5 @@
 /* Song Voter - Elite Dark Aesthetic */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
     /* Monochromatic dark palette */
@@ -10,14 +11,16 @@
     --text-secondary: #737373;
     --text-muted: #404040;
 
-    /* Minimal accent - warm white/gold */
+    /* Minimal accent - warm amber */
     --accent: #e5e5e5;
     --accent-warm: #d4a574;
     --accent-glow: rgba(212, 165, 116, 0.15);
-    --success: #22c55e;
-    --success-muted: #166534;
+    --success: #eab308;
+    --success-muted: #854d0e;
     --danger: #dc2626;
     --danger-muted: #991b1b;
+    --positive: #22c55e;
+    --positive-muted: #166534;
 
     /* Design tokens */
     --border: rgba(255, 255, 255, 0.06);
@@ -304,6 +307,7 @@ label {
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-primary);
 }
 
 .thumb-btn:hover {
@@ -312,13 +316,15 @@ label {
 }
 
 .thumb-btn.up.selected {
-    background: var(--success-muted);
-    border-color: var(--success);
+    background: var(--positive-muted);
+    border-color: var(--positive);
+    color: var(--positive);
 }
 
 .thumb-btn.down.selected {
     background: var(--danger-muted);
     border-color: var(--danger);
+    color: var(--danger);
 }
 
 /* Rating */
