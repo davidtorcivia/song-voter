@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  song-voter:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist the SQLite database
+      - ./data:/app/data
+      # Mount your songs folder - UPDATE THIS PATH
+      - /path/to/your/songs:/app/songs:ro
+    environment:
+      - SONGS_DIR=/app/songs
+      - DATABASE_PATH=/app/data/song_voter.db
+    restart: unless-stopped

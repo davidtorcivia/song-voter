@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Voter</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Song Voter</h1>
+
+        <!-- Setup Section -->
+        <div id="setupSection" class="card setup-section">
+            <div>
+                <label>Step 1: Load Songs</label>
+                <button id="scanBtn" class="btn btn-primary" style="width: 100%;">
+                    Scan Songs Folder
+                </button>
+            </div>
+
+            <div>
+                <label for="modeSelect">Step 2: Choose Mode</label>
+                <select id="modeSelect">
+                    <option value="all">All Songs (Shuffled)</option>
+                </select>
+            </div>
+
+            <button id="startBtn" class="btn btn-success" disabled style="width: 100%;">
+                Start Voting ▶
+            </button>
+
+            <a href="/results" class="nav-link" style="margin-top: 8px;">◈ View Results</a>
+        </div>
+
+        <!-- Player Section -->
+        <div id="playerSection" class="player-section">
+            <div class="card">
+                <div class="song-name" id="songName">—</div>
+
+                <div class="audio-controls">
+                    <!-- Progress Bar -->
+                    <div class="progress-container" id="progressBar">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="time-display">
+                            <span id="currentTime">0:00</span>
+                            <span id="totalTime">0:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Playback Controls -->
+                    <div class="playback-controls">
+                        <div class="volume-control">
+                            <span>◉</span>
+                            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="80">
+                        </div>
+
+                        <button id="playBtn" class="btn btn-icon btn-primary">▶</button>
+                        <button id="skipBtn" class="btn btn-icon btn-secondary">⏭</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voting Section -->
+            <div class="card voting-section">
+                <div class="thumbs-container">
+                    <button id="thumbDownBtn" class="thumb-btn down">▽</button>
+                    <button id="thumbUpBtn" class="thumb-btn up">△</button>
+                </div>
+
+                <div class="rating-container">
+                    <div class="rating-label">
+                        Rating: <span class="rating-value" id="ratingValue">5</span>/10
+                    </div>
+                    <input type="range" id="ratingSlider" class="rating-slider" min="1" max="10" value="5">
+                    <div class="rating-labels">
+                        <span>1</span>
+                        <span>5</span>
+                        <span>10</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="submitBtn" class="btn btn-success">
+                        Submit & Next ✓
+                    </button>
+                </div>
+            </div>
+
+            <a href="/results" class="nav-link">View Results →</a>
+        </div>
+
+        <!-- Feedback Toast -->
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

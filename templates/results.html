@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results - Song Voter</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Results</h1>
+
+        <div class="card">
+            <div id="loading" class="loading">Loading results</div>
+
+            <table id="resultsTable" class="results-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th data-sort="filename">Song</th>
+                        <th data-sort="vote_count">Votes</th>
+                        <th data-sort="avg_rating">Rating</th>
+                        <th data-sort="thumbs_up_pct">△ %</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+
+            <div id="noResults" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">
+                No votes recorded yet. Start voting to see results!
+            </div>
+        </div>
+
+        <a href="/" class="nav-link">← Back to Voting</a>
+    </div>
+
+    <script>
+        let results = [];
+        let currentSort = 'avg_rating';
+        let sortAsc = false;
+
+        async function loadResults() {
+            try {
+                const response = await fetch('/api/results');
+                const data = await response.json();
+                results = data.results;
+
+                document.getElementById('loading').style.display = 'none';
+
+                if (results.length === 0) {
+                    document.getElementById('noResults').style.display = 'block';
+                } else {
+                    document.getElementById('resultsTable').style.display = 'table';
+                    sortResults(currentSort);
+                }
+            } catch (err) {
+                document.getElementById('loading').textContent = 'Error loading results';
+                console.error(err);
+            }
+        }
+
+        function sortResults(column) {
+            if (currentSort === column) {
+                sortAsc = !sortAsc;
+            } else {
+                currentSort = column;
+                sortAsc = false; // Default to descending for new columns
+            }
+
+            results.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+
+                // Handle null values
+                if (aVal === null) aVal = -999;
+                if (bVal === null) bVal = -999;
+
+                // String comparison for filename
+                if (column === 'filename') {
+                    return sortAsc ?
+                        aVal.localeCompare(bVal) :
+                        bVal.localeCompare(aVal);
+                }
+
+                // Numeric comparison
+                return sortAsc ? aVal - bVal : bVal - aVal;
+            });
+
+            renderResults();
+            updateSortIndicators();
+        }
+
+        function renderResults() {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            for (const result of results) {
+                const tr = document.createElement('tr');
+
+                const rating = result.avg_rating !== null ?
+                    result.avg_rating.toFixed(1) :
+                    '<span class="no-votes">—</span>';
+
+                const thumbs = result.thumbs_up_pct !== null ?
+                    `${result.thumbs_up_pct}%` :
+                    '<span class="no-votes">—</span>';
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(result.filename)}</td>
+                    <td>${result.vote_count}</td>
+                    <td>${rating}</td>
+                    <td>${thumbs}</td>
+                `;
+
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('.results-table th').forEach(th => {
+                th.classList.remove('sorted', 'asc');
+                if (th.dataset.sort === currentSort) {
+                    th.classList.add('sorted');
+                    if (sortAsc) th.classList.add('asc');
+                }
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.querySelectorAll('.results-table th').forEach(th => {
+            th.addEventListener('click', () => {
+                if (th.dataset.sort) {
+                    sortResults(th.dataset.sort);
+                }
+            });
+        });
+
+        // Load on page load
+        loadResults();
+    </script>
+</body>
+
+</html>
