@@ -136,6 +136,16 @@ class SongVoter {
         });
         document.addEventListener('mouseup', endDrag);
 
+        // Hover effect tracking
+        this.hoverX = -1;
+        this.waveformCanvas.addEventListener('mousemove', (e) => {
+            const rect = this.waveformCanvas.getBoundingClientRect();
+            this.hoverX = e.clientX - rect.left;
+        });
+        this.waveformCanvas.addEventListener('mouseleave', () => {
+            this.hoverX = -1;
+        });
+
         this.waveformCanvas.addEventListener('touchstart', (e) => {
             startDrag(e.touches[0]);
         }, { passive: true });
@@ -145,8 +155,8 @@ class SongVoter {
         }, { passive: true });
         document.addEventListener('touchend', endDrag);
 
-        // Resize observer
-        new ResizeObserver(() => this.drawWaveform()).observe(this.waveformCanvas);
+        // Start render loop
+        this.animateWaveform();
     }
 
     seekFromEvent(e) {
@@ -562,10 +572,15 @@ class SongVoter {
     updateProgress() {
         if (!this.waveformCanvas) return;
         this.currentTime.textContent = this.formatTime(this.audio.currentTime);
-        this.drawWaveform();
+        // Drawing happens in animation loop now for smoothness
 
         // Update submit button state (timer is handled separately)
         this.updateSubmitButtonState();
+    }
+
+    animateWaveform() {
+        this.drawWaveform();
+        requestAnimationFrame(() => this.animateWaveform());
     }
 
     drawWaveform() {
@@ -574,16 +589,18 @@ class SongVoter {
         const width = this.waveformCanvas.offsetWidth;
         const height = this.waveformCanvas.offsetHeight;
 
-        // Handle retina
-        this.waveformCanvas.width = width * window.devicePixelRatio;
-        this.waveformCanvas.height = height * window.devicePixelRatio;
-        this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        // Handle retina if size changed
+        if (this.waveformCanvas.width !== width * window.devicePixelRatio) {
+            this.waveformCanvas.width = width * window.devicePixelRatio;
+            this.waveformCanvas.height = height * window.devicePixelRatio;
+            this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
 
-        // Clear
+        // Clear (transparent background)
         this.waveCtx.clearRect(0, 0, width, height);
 
         // Use dummy data if not loaded yet
-        const data = this.waveData || new Array(100).fill(0.1);
+        const data = this.waveData || new Array(100).fill(0.005);
         const barWidth = width / data.length;
         const gap = 0.5; // Small gap
 
@@ -597,7 +614,20 @@ class SongVoter {
 
             // Determine color based on progress
             const isPlayed = (i / data.length) < progress;
-            this.waveCtx.fillStyle = isPlayed ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+
+            // Hover effect
+            const isHovered = this.hoverX >= 0 && x <= this.hoverX;
+
+            if (isPlayed) {
+                // Played: Solid White
+                this.waveCtx.fillStyle = '#ffffff';
+            } else if (isHovered) {
+                // Hovered: Slightly transparent white (preview seek)
+                this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            } else {
+                // Unplayed: Very subtle grey
+                this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            }
 
             this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
         }

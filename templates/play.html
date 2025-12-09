@@ -239,6 +239,16 @@
                     });
                     document.addEventListener('mouseup', endDrag);
 
+                    // Hover effect tracking
+                    this.hoverX = -1;
+                    this.waveformCanvas.addEventListener('mousemove', (e) => {
+                        const rect = this.waveformCanvas.getBoundingClientRect();
+                        this.hoverX = e.clientX - rect.left;
+                    });
+                    this.waveformCanvas.addEventListener('mouseleave', () => {
+                        this.hoverX = -1;
+                    });
+
                     this.waveformCanvas.addEventListener('touchstart', (e) => {
                         startDrag(e.touches[0]);
                     }, { passive: true });
@@ -248,8 +258,8 @@
                     }, { passive: true });
                     document.addEventListener('touchend', endDrag);
 
-                    // Resize observer
-                    new ResizeObserver(() => this.drawWaveform()).observe(this.waveformCanvas);
+                    // Start render loop
+                    this.animateWaveform();
                 }
 
                 this.audio.addEventListener('timeupdate', () => this.updateProgress());
@@ -322,9 +332,14 @@
             }
 
             updateProgress() {
-                if (isNaN(this.audio.duration)) return;
+                if (!this.waveformCanvas) return;
                 this.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
+                // Drawing handled by animation loop
+            }
+
+            animateWaveform() {
                 this.drawWaveform();
+                requestAnimationFrame(() => this.animateWaveform());
             }
 
             drawWaveform() {
@@ -334,11 +349,13 @@
                 const height = this.waveformCanvas.offsetHeight;
 
                 // Handle retina
-                this.waveformCanvas.width = width * window.devicePixelRatio;
-                this.waveformCanvas.height = height * window.devicePixelRatio;
-                this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                if (this.waveformCanvas.width !== width * window.devicePixelRatio) {
+                    this.waveformCanvas.width = width * window.devicePixelRatio;
+                    this.waveformCanvas.height = height * window.devicePixelRatio;
+                    this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                }
 
-                // Clear
+                // Clear (transparent background)
                 this.waveCtx.clearRect(0, 0, width, height);
 
                 // Use dummy data if not loaded yet
@@ -356,7 +373,17 @@
 
                     // Determine color based on progress
                     const isPlayed = (i / data.length) < progress;
-                    this.waveCtx.fillStyle = isPlayed ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+
+                    // Hover effect
+                    const isHovered = this.hoverX >= 0 && x <= this.hoverX;
+
+                    if (isPlayed) {
+                        this.waveCtx.fillStyle = '#ffffff';
+                    } else if (isHovered) {
+                        this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    } else {
+                        this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                    }
 
                     this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
                 }

@@ -246,7 +246,7 @@ label {
     height: 48px;
     display: block;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.05);
+    /* Background removed for sleek look */
 }
 
 top: 50%;
