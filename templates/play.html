@@ -142,8 +142,7 @@
             <!-- Audio Controls -->
             <div class="audio-controls">
                 <div class="progress-container" id="progressBar">
-                    <div class="progress-fill" id="progressFill"></div>
-                    <div class="playhead" id="playhead"></div>
+                    <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
                 </div>
 
                 <div class="time-display">
@@ -176,9 +175,12 @@
             constructor(songId) {
                 this.audio = document.getElementById('audioPlayer');
                 this.playBtn = document.getElementById('playBtn');
-                this.progressBar = document.getElementById('progressBar');
-                this.progressFill = document.getElementById('progressFill');
-                this.playhead = document.getElementById('playhead');
+
+                // Waveform elements
+                this.waveformCanvas = document.getElementById('waveformCanvas');
+                this.waveCtx = this.waveformCanvas ? this.waveformCanvas.getContext('2d') : null;
+                this.waveData = null;
+
                 this.currentTimeEl = document.getElementById('currentTime');
                 this.totalTimeEl = document.getElementById('totalTime');
                 this.volumeSlider = document.getElementById('volumeSlider');
@@ -195,9 +197,21 @@
             init(songId) {
                 this.audio.src = `/api/songs/${songId}/audio`;
 
+                fetch(`/api/songs/${songId}/waveform`)
+                    .then(res => res.json())
+                    .then(data => {
+                        this.waveData = data;
+                        this.drawWaveform();
+                    })
+                    .catch(() => this.waveData = null);
+
                 // Event listeners
                 this.playBtn.addEventListener('click', () => this.togglePlay());
-                this.progressBar.addEventListener('click', (e) => this.seekFromEvent(e));
+
+                if (this.waveformCanvas) {
+                    this.waveformCanvas.addEventListener('click', (e) => this.seekFromEvent(e));
+                }
+
                 this.volumeSlider.addEventListener('input', () => {
                     this.audio.volume = this.volumeSlider.value;
                 });
@@ -206,16 +220,37 @@
                     this.castBtn.addEventListener('click', () => this.promptCast());
                 }
 
-                // Seek drag
-                let isDragging = false;
-                this.progressBar.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    this.seekFromEvent(e);
-                });
-                document.addEventListener('mousemove', (e) => {
-                    if (isDragging) this.seekFromEvent(e);
-                });
-                document.addEventListener('mouseup', () => isDragging = false);
+                // Seek drag on canvas
+                if (this.waveformCanvas) {
+                    let isDragging = false;
+
+                    const startDrag = (e) => {
+                        isDragging = true;
+                        this.seekFromEvent(e);
+                    };
+
+                    const endDrag = () => {
+                        isDragging = false;
+                    };
+
+                    this.waveformCanvas.addEventListener('mousedown', startDrag);
+                    document.addEventListener('mousemove', (e) => {
+                        if (isDragging) this.seekFromEvent(e);
+                    });
+                    document.addEventListener('mouseup', endDrag);
+
+                    this.waveformCanvas.addEventListener('touchstart', (e) => {
+                        startDrag(e.touches[0]);
+                    }, { passive: true });
+                    document.addEventListener('touchmove', (e) => {
+                        if (!isDragging) return;
+                        this.seekFromEvent(e.touches[0]);
+                    }, { passive: true });
+                    document.addEventListener('touchend', endDrag);
+
+                    // Resize observer
+                    new ResizeObserver(() => this.drawWaveform()).observe(this.waveformCanvas);
+                }
 
                 this.audio.addEventListener('timeupdate', () => this.updateProgress());
                 this.audio.addEventListener('loadedmetadata', () => {
@@ -276,8 +311,10 @@
             }
 
             seekFromEvent(e) {
-                const rect = this.progressBar.getBoundingClientRect();
-                let percent = (e.clientX - rect.left) / rect.width;
+                if (!this.waveformCanvas) return;
+                const rect = this.waveformCanvas.getBoundingClientRect();
+                const x = e.clientX !== undefined ? e.clientX : e.pageX;
+                let percent = (x - rect.left) / rect.width;
                 percent = Math.max(0, Math.min(1, percent));
                 if (!isNaN(this.audio.duration)) {
                     this.audio.currentTime = percent * this.audio.duration;
@@ -286,10 +323,43 @@
 
             updateProgress() {
                 if (isNaN(this.audio.duration)) return;
-                const percent = (this.audio.currentTime / this.audio.duration) * 100;
-                this.progressFill.style.width = `${percent}%`;
-                this.playhead.style.left = `calc(${percent}% - 5px)`;
                 this.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
+                this.drawWaveform();
+            }
+
+            drawWaveform() {
+                if (!this.waveCtx || !this.waveformCanvas) return;
+
+                const width = this.waveformCanvas.offsetWidth;
+                const height = this.waveformCanvas.offsetHeight;
+
+                // Handle retina
+                this.waveformCanvas.width = width * window.devicePixelRatio;
+                this.waveformCanvas.height = height * window.devicePixelRatio;
+                this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+                // Clear
+                this.waveCtx.clearRect(0, 0, width, height);
+
+                // Use dummy data if not loaded yet
+                const data = this.waveData || new Array(100).fill(0.1);
+                const barWidth = width / data.length;
+                const gap = 0.5; // Small gap
+
+                const progress = this.audio.currentTime / this.audio.duration || 0;
+
+                for (let i = 0; i < data.length; i++) {
+                    const val = data[i];
+                    const x = i * barWidth;
+                    const barHeight = Math.max(2, val * height);
+                    const y = (height - barHeight) / 2; // Center vertically
+
+                    // Determine color based on progress
+                    const isPlayed = (i / data.length) < progress;
+                    this.waveCtx.fillStyle = isPlayed ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+
+                    this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+                }
             }
 
             formatTime(sec) {

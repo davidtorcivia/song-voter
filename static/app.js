@@ -82,6 +82,11 @@ class SongVoter {
         this.ratingValue = document.getElementById('ratingValue');
         this.submitBtn = document.getElementById('submitBtn');
 
+        // Waveform elements
+        this.waveformCanvas = document.getElementById('waveformCanvas');
+        this.waveCtx = this.waveformCanvas ? this.waveformCanvas.getContext('2d') : null;
+        this.waveData = null;
+
         // Feedback
         this.feedback = document.getElementById('feedback');
     }
@@ -112,6 +117,8 @@ class SongVoter {
     }
 
     initSeekDrag() {
+        if (!this.waveformCanvas) return;
+
         let isDragging = false;
 
         const startDrag = (e) => {
@@ -119,35 +126,32 @@ class SongVoter {
             this.seekFromEvent(e);
         };
 
-        const doDrag = (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            this.seekFromEvent(e);
-        };
-
         const endDrag = () => {
             isDragging = false;
         };
 
-        // Mouse events
-        this.progressBar.addEventListener('mousedown', startDrag);
-        document.addEventListener('mousemove', doDrag);
+        this.waveformCanvas.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) this.seekFromEvent(e);
+        });
         document.addEventListener('mouseup', endDrag);
 
-        // Touch events
-        this.progressBar.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            this.seekFromEvent(e.touches[0]);
+        this.waveformCanvas.addEventListener('touchstart', (e) => {
+            startDrag(e.touches[0]);
         }, { passive: true });
         document.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
             this.seekFromEvent(e.touches[0]);
         }, { passive: true });
         document.addEventListener('touchend', endDrag);
+
+        // Resize observer
+        new ResizeObserver(() => this.drawWaveform()).observe(this.waveformCanvas);
     }
 
     seekFromEvent(e) {
-        const rect = this.progressBar.getBoundingClientRect();
+        if (!this.waveformCanvas) return;
+        const rect = this.waveformCanvas.getBoundingClientRect();
         const x = e.clientX !== undefined ? e.clientX : e.pageX;
         let percent = (x - rect.left) / rect.width;
         percent = Math.max(0, Math.min(1, percent));
@@ -248,7 +252,7 @@ class SongVoter {
         const width = this.visualizer.width / window.devicePixelRatio;
         const height = this.visualizer.height / window.devicePixelRatio;
 
-        this.visCtx.fillStyle = 'rgba(15, 15, 20, 0.4)';
+        this.visCtx.fillStyle = '#111111';
         this.visCtx.fillRect(0, 0, width, height);
 
         // Draw subtle idle bars
@@ -258,10 +262,9 @@ class SongVoter {
 
         for (let i = 0; i < barCount; i++) {
             const barHeight = 2 + Math.random() * 4;
-            // Esoteric idle colors matched to play.html usage
-            const hue = 220 + (i / barCount) * 40;
-            const light = 20; // Dimmer for idle
-            this.visCtx.fillStyle = `hsla(${hue}, 40%, ${light}%, 0.5)`;
+            // Monochrome idle
+            const light = 20;
+            this.visCtx.fillStyle = `hsl(0, 0%, ${light}%)`;
             this.visCtx.fillRect(i * (barWidth + gap), height - barHeight, barWidth, barHeight);
         }
     }
@@ -306,7 +309,7 @@ class SongVoter {
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
-            this.visCtx.fillStyle = 'rgba(15, 15, 20, 0.4)'; // Darker, transparent bg like play.html
+            this.visCtx.fillStyle = '#111111';
             this.visCtx.fillRect(0, 0, width, height);
 
             const barCount = 48;
@@ -319,14 +322,10 @@ class SongVoter {
                 const barHeight = value * height * 0.85;
                 const x = i * (barWidth + gap);
 
-                // Subtle esoteric colors: muted blues and soft purples
-                // Matching play.html implementation logic
-                const hue = 220 + (i / barCount) * 40; // 220-260 range
-                const sat = 35 + value * 25;
-                const light = 30 + value * 35;
-                const alpha = 0.5 + value * 0.4;
-
-                this.visCtx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
+                // Monochrome visualizer (Vote Page)
+                // White/Grey scale based on intensity
+                const lightness = 30 + value * 60; // 30% to 90% lightness
+                this.visCtx.fillStyle = `hsl(0, 0%, ${lightness}%)`;
 
                 this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
             }
@@ -507,6 +506,31 @@ class SongVoter {
         // Load audio
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
+
+        // Fetch waveform
+        this.waveData = null;
+        fetch(`/api/songs/${song.id}/waveform`)
+            .then(res => res.json())
+            .then(data => {
+                this.waveData = data;
+                this.drawWaveform();
+            })
+            .catch(() => this.waveData = null);
+
+        // Load audio
+        this.audio.src = `/api/songs/${song.id}/audio`;
+        this.audio.load();
+
+        // Fetch waveform
+        this.waveData = null;
+        fetch(`/api/songs/${song.id}/waveform`)
+            .then(res => res.json())
+            .then(data => {
+                this.waveData = data;
+                this.drawWaveform();
+            })
+            .catch(() => this.waveData = null);
+
         this.audio.play().catch(err => console.log('Autoplay blocked:', err));
     }
 
@@ -536,17 +560,47 @@ class SongVoter {
     }
 
     updateProgress() {
-        const percent = (this.audio.currentTime / this.audio.duration) * 100;
-        this.progressFill.style.width = `${percent}%`;
+        if (!this.waveformCanvas) return;
         this.currentTime.textContent = this.formatTime(this.audio.currentTime);
-
-        // Update playhead icon position
-        if (this.playhead) {
-            this.playhead.style.left = `calc(${percent}% - 5px)`;
-        }
+        this.drawWaveform();
 
         // Update submit button state (timer is handled separately)
         this.updateSubmitButtonState();
+    }
+
+    drawWaveform() {
+        if (!this.waveCtx || !this.waveformCanvas) return;
+
+        const width = this.waveformCanvas.offsetWidth;
+        const height = this.waveformCanvas.offsetHeight;
+
+        // Handle retina
+        this.waveformCanvas.width = width * window.devicePixelRatio;
+        this.waveformCanvas.height = height * window.devicePixelRatio;
+        this.waveCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        // Clear
+        this.waveCtx.clearRect(0, 0, width, height);
+
+        // Use dummy data if not loaded yet
+        const data = this.waveData || new Array(100).fill(0.1);
+        const barWidth = width / data.length;
+        const gap = 0.5; // Small gap
+
+        const progress = this.audio.currentTime / this.audio.duration || 0;
+
+        for (let i = 0; i < data.length; i++) {
+            const val = data[i];
+            const x = i * barWidth;
+            const barHeight = Math.max(2, val * height);
+            const y = (height - barHeight) / 2; // Center vertically
+
+            // Determine color based on progress
+            const isPlayed = (i / data.length) < progress;
+            this.waveCtx.fillStyle = isPlayed ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+
+            this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+        }
     }
 
     startListenTimer() {

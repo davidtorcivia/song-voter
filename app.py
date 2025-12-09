@@ -4,6 +4,8 @@ from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, send_file, Response, session, redirect, url_for, flash
 import database as db
+import waveform
+import audio_normalize
 
 app = Flask(__name__)
 
@@ -70,7 +72,13 @@ def run_scan():
     for filename in os.listdir(SONGS_DIR):
         if filename.lower().endswith(SUPPORTED_EXTENSIONS):
             full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
-            db.add_song(filename, full_path)
+            song_id = db.add_song(filename, full_path)
+            if song_id:
+                # Generate waveform in background (lightweight)
+                try:
+                    waveform.get_or_generate_waveform(full_path, song_id)
+                except Exception as e:
+                    print(f"Waveform generation error: {e}")
             count += 1
     return count
 
@@ -414,6 +422,15 @@ def scan_folder():
     })
 
 
+@app.route('/api/songs/<int:song_id>/waveform')
+def get_waveform(song_id):
+    """Get waveform data for a song."""
+    path = waveform.get_waveform_path(song_id)
+    if os.path.exists(path):
+        return send_file(path)
+    return jsonify([]), 404
+
+
 @app.route('/api/clear', methods=['POST'])
 def clear_data():
     """Clear all data and rescan."""
@@ -593,11 +610,12 @@ def admin_upload_song():
     song_id = db.add_song(filename, full_path)
     
     # Trigger normalization in background (optional - could be slow)
+    # Trigger normalization and waveform generation
     try:
-        import audio_normalize
         audio_normalize.get_or_normalize(full_path)
+        waveform.get_or_generate_waveform(full_path, song_id)
     except Exception as e:
-        print(f"Normalization error: {e}")
+        print(f"Post-processing error: {e}")
     
     return jsonify({
         'success': True,
@@ -621,6 +639,9 @@ def admin_delete_song(song_id):
                 os.remove(normalized_path)
         except Exception as e:
             print(f"Error deleting normalized file: {e}")
+            
+        # Delete waveform
+        waveform.delete_waveform(song_id)
         
         return jsonify({'success': True})
     
