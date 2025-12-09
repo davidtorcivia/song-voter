@@ -30,6 +30,7 @@ class SongVoter {
 
     initElements() {
         // Setup
+        this.pageTitle = document.getElementById('pageTitle');
         this.scanBtn = document.getElementById('scanBtn');
         this.modeSelect = document.getElementById('modeSelect');
         this.startBtn = document.getElementById('startBtn');
@@ -76,6 +77,22 @@ class SongVoter {
 
         if (this.castBtn) {
             this.castBtn.addEventListener('click', () => this.promptCast());
+        }
+
+        // Handle browser back button
+        window.addEventListener('popstate', (e) => this.handleBackButton(e));
+    }
+
+    handleBackButton(e) {
+        if (this.playerSection.style.display === 'block') {
+            // Go back to setup instead of leaving page
+            e.preventDefault();
+            this.audio.pause();
+            this.playerSection.style.display = 'none';
+            this.setupSection.style.display = 'block';
+            if (this.pageTitle) this.pageTitle.textContent = 'Song Voter';
+            // Push state again so next back goes to previous page
+            history.pushState({ page: 'setup' }, '', '');
         }
     }
 
@@ -292,7 +309,10 @@ class SongVoter {
         this.setupSection.style.display = 'none';
         this.playerSection.style.display = 'block';
 
-        // Setup audio analyser after user interaction
+        // Push history state for back button handling
+        history.pushState({ page: 'player' }, '', '');
+
+        // Setup audio analyser after user interaction (needed for mobile)
         this.setupAudioAnalyser();
 
         this.playNext();
@@ -305,6 +325,7 @@ class SongVoter {
             this.showFeedback('All songs rated!');
             this.setupSection.style.display = 'block';
             this.playerSection.style.display = 'none';
+            if (this.pageTitle) this.pageTitle.textContent = 'Song Voter';
             return;
         }
 
@@ -314,6 +335,11 @@ class SongVoter {
     loadSong(song) {
         this.currentSong = song;
         this.songName.textContent = `${this.currentIndex + 1}/${this.queue.length}`;
+
+        // Update page title to base name (hide version info)
+        if (this.pageTitle) {
+            this.pageTitle.textContent = song.base_name || 'Voting';
+        }
 
         // Reset voting state
         this.thumbsValue = null;
