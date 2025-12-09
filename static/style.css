@@ -300,6 +300,36 @@ label {
     }
 }
 
+/* HEOS Controls */
+.heos-controls {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.heos-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.heos-select {
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 10px 12px;
+}
+
+.heos-play-btn {
+    padding: 10px 16px;
+    font-size: 1rem;
+}
+
+.heos-play-btn.playing {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg-primary);
+}
+
 .volume-control {
     display: flex;
     align-items: center;

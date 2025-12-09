@@ -156,6 +156,65 @@ def clear_data():
     return jsonify({'success': True})
 
 
+# ============ HEOS Endpoints ============
+
+@app.route('/api/heos/discover', methods=['POST'])
+def heos_discover():
+    """Discover HEOS devices on the network."""
+    import heos
+    devices = heos.discover_heos_devices(timeout=3)
+    return jsonify({'devices': devices})
+
+
+@app.route('/api/heos/devices', methods=['GET'])
+def heos_devices():
+    """Get cached HEOS devices."""
+    import heos
+    devices = heos.get_cached_devices()
+    return jsonify({'devices': devices})
+
+
+@app.route('/api/heos/play', methods=['POST'])
+def heos_play():
+    """Tell a HEOS device to play a song."""
+    import heos
+    data = request.get_json()
+    
+    host = data.get('host')
+    pid = data.get('pid')
+    song_id = data.get('song_id')
+    
+    if not all([host, pid, song_id]):
+        return jsonify({'error': 'Missing host, pid, or song_id'}), 400
+    
+    # Build the full audio URL
+    # Use the request's host to build the URL the HEOS device can reach
+    audio_url = f"{request.url_root}api/songs/{song_id}/audio"
+    
+    success = heos.play_url(host, pid, audio_url)
+    
+    if success:
+        return jsonify({'success': True, 'url': audio_url})
+    else:
+        return jsonify({'error': 'Failed to play on HEOS device'}), 500
+
+
+@app.route('/api/heos/stop', methods=['POST'])
+def heos_stop():
+    """Stop playback on a HEOS device."""
+    import heos
+    data = request.get_json()
+    
+    host = data.get('host')
+    pid = data.get('pid')
+    
+    if not all([host, pid]):
+        return jsonify({'error': 'Missing host or pid'}), 400
+    
+    success = heos.stop_playback(host, pid)
+    return jsonify({'success': success})
+
+
 if __name__ == '__main__':
     db.init_db()
     app.run(host='0.0.0.0', port=5000, debug=False)

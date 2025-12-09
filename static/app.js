@@ -16,10 +16,16 @@ class SongVoter {
         this.isPlaying = false;
         this.isCasting = false;
 
+        // HEOS state
+        this.heosDevices = [];
+        this.heosPlaying = false;
+        this.selectedHeos = null;
+
         this.initElements();
         this.initEventListeners();
         this.initAudioListeners();
         this.initCasting();
+        this.initHeos();
 
         // Auto-load songs on startup
         this.autoLoadSongs();
@@ -54,6 +60,10 @@ class SongVoter {
 
         // Feedback
         this.feedback = document.getElementById('feedback');
+
+        // HEOS
+        this.heosSelect = document.getElementById('heosSelect');
+        this.heosPlayBtn = document.getElementById('heosPlayBtn');
     }
 
     initEventListeners() {
@@ -72,6 +82,15 @@ class SongVoter {
 
         if (this.castBtn) {
             this.castBtn.addEventListener('click', () => this.promptCast());
+        }
+
+        // HEOS listeners
+        if (this.heosSelect) {
+            this.heosSelect.addEventListener('change', () => this.onHeosSelect());
+            this.heosSelect.addEventListener('focus', () => this.discoverHeos());
+        }
+        if (this.heosPlayBtn) {
+            this.heosPlayBtn.addEventListener('click', () => this.toggleHeosPlay());
         }
     }
 
@@ -412,6 +431,164 @@ class SongVoter {
         setTimeout(() => {
             this.feedback.classList.remove('show');
         }, 1500);
+    }
+
+    // ============ HEOS Methods ============
+
+    initHeos() {
+        // Try to load cached devices on init
+        this.loadCachedHeosDevices();
+    }
+
+    async loadCachedHeosDevices() {
+        try {
+            const response = await fetch('/api/heos/devices');
+            const data = await response.json();
+            if (data.devices && data.devices.length > 0) {
+                this.heosDevices = data.devices;
+                this.populateHeosSelect();
+            }
+        } catch (err) {
+            console.log('No cached HEOS devices');
+        }
+    }
+
+    async discoverHeos() {
+        if (!this.heosSelect) return;
+
+        // Only discover if we don't have devices yet
+        if (this.heosDevices.length > 0) return;
+
+        this.heosSelect.innerHTML = '<option value="">Scanning...</option>';
+
+        try {
+            const response = await fetch('/api/heos/discover', { method: 'POST' });
+            const data = await response.json();
+
+            this.heosDevices = data.devices || [];
+            this.populateHeosSelect();
+
+            if (this.heosDevices.length === 0) {
+                this.showFeedback('No HEOS devices found', true);
+            } else {
+                this.showFeedback(`Found ${this.heosDevices.length} HEOS device(s)`);
+            }
+        } catch (err) {
+            console.error('HEOS discovery error:', err);
+            this.heosSelect.innerHTML = '<option value="">Discovery failed</option>';
+        }
+    }
+
+    populateHeosSelect() {
+        if (!this.heosSelect) return;
+
+        this.heosSelect.innerHTML = '<option value="">Select HEOS device...</option>';
+
+        for (const device of this.heosDevices) {
+            const option = document.createElement('option');
+            option.value = JSON.stringify({ host: device.host, pid: device.pid });
+            option.textContent = device.name + (device.model ? ` (${device.model})` : '');
+            this.heosSelect.appendChild(option);
+        }
+
+        // Add rescan option
+        const rescanOption = document.createElement('option');
+        rescanOption.value = 'rescan';
+        rescanOption.textContent = '↻ Rescan for devices...';
+        this.heosSelect.appendChild(rescanOption);
+    }
+
+    onHeosSelect() {
+        if (!this.heosSelect || !this.heosPlayBtn) return;
+
+        const value = this.heosSelect.value;
+
+        if (value === 'rescan') {
+            this.heosDevices = [];
+            this.discoverHeos();
+            return;
+        }
+
+        if (value) {
+            this.selectedHeos = JSON.parse(value);
+            this.heosPlayBtn.disabled = false;
+        } else {
+            this.selectedHeos = null;
+            this.heosPlayBtn.disabled = true;
+        }
+    }
+
+    async toggleHeosPlay() {
+        if (!this.selectedHeos || !this.currentSong) return;
+
+        if (this.heosPlaying) {
+            // Stop HEOS playback
+            await this.stopHeosPlay();
+        } else {
+            // Start HEOS playback
+            await this.startHeosPlay();
+        }
+    }
+
+    async startHeosPlay() {
+        if (!this.selectedHeos || !this.currentSong) return;
+
+        this.heosPlayBtn.disabled = true;
+        this.heosPlayBtn.textContent = '...';
+
+        try {
+            const response = await fetch('/api/heos/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    host: this.selectedHeos.host,
+                    pid: this.selectedHeos.pid,
+                    song_id: this.currentSong.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.heosPlaying = true;
+                this.heosPlayBtn.textContent = '■';
+                this.heosPlayBtn.classList.add('playing');
+                this.showFeedback('Playing on HEOS');
+
+                // Pause local playback
+                this.audio.pause();
+            } else {
+                this.showFeedback(data.error || 'HEOS play failed', true);
+                this.heosPlayBtn.textContent = '▸';
+            }
+        } catch (err) {
+            console.error('HEOS play error:', err);
+            this.showFeedback('HEOS error', true);
+            this.heosPlayBtn.textContent = '▸';
+        }
+
+        this.heosPlayBtn.disabled = false;
+    }
+
+    async stopHeosPlay() {
+        if (!this.selectedHeos) return;
+
+        try {
+            await fetch('/api/heos/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    host: this.selectedHeos.host,
+                    pid: this.selectedHeos.pid
+                })
+            });
+        } catch (err) {
+            console.error('HEOS stop error:', err);
+        }
+
+        this.heosPlaying = false;
+        this.heosPlayBtn.textContent = '▸';
+        this.heosPlayBtn.classList.remove('playing');
     }
 }
 
