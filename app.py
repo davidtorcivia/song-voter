@@ -79,16 +79,41 @@ def gate():
 @app.route('/')
 def index():
     """Serve the main voting page."""
-    return render_template('index.html')
+    branding = {
+        'title': db.get_setting('site_title', 'Song Voter'),
+        'description': db.get_setting('site_description', 'Vote on your favorite song versions'),
+        'url': db.get_setting('site_url', ''),
+        'og_image': db.get_setting('og_image', ''),
+        'favicon': db.get_setting('favicon', '/static/favicon.ico'),
+    }
+    return render_template('index.html', branding=branding)
 
 
 @app.route('/results')
 def results():
-    """Serve the results page (if public)."""
-    results_public = db.get_setting('results_public', 'true') == 'true'
-    if not results_public and not session.get('admin'):
+    """Serve the results page based on visibility setting."""
+    visibility = db.get_setting('results_visibility', 'public')
+    
+    # Admin always has access
+    if session.get('admin'):
+        return render_template('results.html')
+    
+    if visibility == 'hidden':
         flash('Results are not publicly available', 'error')
         return redirect(url_for('index'))
+    
+    if visibility == 'until_voting_ends':
+        from datetime import datetime
+        voting_end = db.get_setting('voting_end', '')
+        if voting_end:
+            try:
+                end_dt = datetime.fromisoformat(voting_end)
+                if datetime.now() < end_dt:
+                    flash('Results will be available after voting ends', 'error')
+                    return redirect(url_for('index'))
+            except ValueError:
+                pass
+    
     return render_template('results.html')
 
 
@@ -213,6 +238,30 @@ def vote(song_id):
     if not song:
         return jsonify({'error': 'Song not found'}), 404
     
+    # Check voting time window (admin bypass)
+    if not session.get('admin'):
+        from datetime import datetime
+        now = datetime.now()
+        
+        voting_start = db.get_setting('voting_start', '')
+        voting_end = db.get_setting('voting_end', '')
+        
+        if voting_start:
+            try:
+                start_dt = datetime.fromisoformat(voting_start)
+                if now < start_dt:
+                    return jsonify({'error': 'Voting has not started yet'}), 403
+            except ValueError:
+                pass
+        
+        if voting_end:
+            try:
+                end_dt = datetime.fromisoformat(voting_end)
+                if now > end_dt:
+                    return jsonify({'error': 'Voting has ended'}), 403
+            except ValueError:
+                pass
+    
     data = request.get_json()
     thumbs_up = data.get('thumbs_up')
     rating = data.get('rating')
@@ -246,12 +295,38 @@ def get_base_names():
 @app.route('/api/results', methods=['GET'])
 def get_results():
     """Get aggregate results for all songs."""
-    results_public = db.get_setting('results_public', 'true') == 'true'
-    if not results_public and not session.get('admin'):
-        return jsonify({'error': 'Results are not publicly available'}), 403
+    visibility = db.get_setting('results_visibility', 'public')
+    
+    # Admin bypass
+    if not session.get('admin'):
+        if visibility == 'hidden':
+            return jsonify({'error': 'Results are not publicly available'}), 403
+        
+        if visibility == 'until_voting_ends':
+            from datetime import datetime
+            voting_end = db.get_setting('voting_end', '')
+            if voting_end:
+                try:
+                    end_dt = datetime.fromisoformat(voting_end)
+                    if datetime.now() < end_dt:
+                        return jsonify({'error': 'Results available after voting ends'}), 403
+                except ValueError:
+                    pass
     
     results = db.get_all_results()
     return jsonify({'results': results})
+
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Get frontend configuration settings."""
+    return jsonify({
+        'min_listen_time': int(db.get_setting('min_listen_time', '20')),
+        'disable_skip': db.get_setting('disable_skip', 'false') == 'true',
+        'site_title': db.get_setting('site_title', 'Song Voter'),
+        'voting_start': db.get_setting('voting_start', ''),
+        'voting_end': db.get_setting('voting_end', ''),
+    })
 
 
 @app.route('/api/scan', methods=['POST'])
@@ -353,8 +428,14 @@ def admin_update_settings():
     """Update settings."""
     data = request.get_json()
     
+    allowed_keys = [
+        'site_password', 'voting_restriction', 'results_visibility',
+        'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
+        'site_title', 'site_description', 'site_url', 'og_image', 'favicon'
+    ]
+    
     for key, value in data.items():
-        if key in ['results_public', 'site_password', 'voting_restriction']:
+        if key in allowed_keys:
             db.set_setting(key, value)
     
     return jsonify({'success': True})

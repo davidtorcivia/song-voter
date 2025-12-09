@@ -18,10 +18,11 @@ class SongVoter {
         this.audioContext = null;
         this.analyser = null;
 
-        // Listening time tracking for 20-second requirement
+        // Listening time tracking for minimum requirement
         this.listenedTime = 0;
-        this.minListenTime = 20; // seconds
+        this.minListenTime = 20; // Will be updated from config
         this.listenInterval = null; // Wall-clock timer
+        this.disableSkip = false; // Will be updated from config
 
         this.initElements();
         this.initEventListeners();
@@ -30,8 +31,25 @@ class SongVoter {
         this.initVisualizer();
         this.initKeyboardControls();
 
-        // Auto-load songs on startup
-        this.autoLoadSongs();
+        // Load config then auto-load songs
+        this.loadConfig().then(() => this.autoLoadSongs());
+    }
+
+    async loadConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const config = await res.json();
+
+            this.minListenTime = config.min_listen_time || 20;
+            this.disableSkip = config.disable_skip || false;
+
+            // Hide skip button if disabled
+            if (this.disableSkip && this.skipBtn) {
+                this.skipBtn.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('Failed to load config:', err);
+        }
     }
 
     initElements() {

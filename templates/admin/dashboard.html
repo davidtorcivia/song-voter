@@ -15,26 +15,23 @@
             <a href="/admin/logout" class="btn btn-secondary">Logout</a>
         </div>
 
-        <!-- Settings Section -->
+        <!-- Access & Voting Settings -->
         <div class="card admin-section">
-            <h2>Settings</h2>
+            <h2>Access & Voting</h2>
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">Results Public</span>
-                    <span class="setting-desc">Allow visitors to see voting results</span>
+                    <span class="setting-label">Site Password</span>
+                    <span class="setting-desc">Leave empty to disable</span>
                 </div>
-                <label class="toggle">
-                    <input type="checkbox" id="resultsPublic" {% if settings.results_public=='true' %}checked{% endif
-                        %}>
-                    <span class="toggle-slider"></span>
-                </label>
+                <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
+                    placeholder="None">
             </div>
 
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Voting Restriction</span>
-                    <span class="setting-desc">Limit votes per visitor (per song)</span>
+                    <span class="setting-desc">Limit one vote per song</span>
                 </div>
                 <select id="votingRestriction" class="setting-select">
                     <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None</option>
@@ -46,15 +43,104 @@
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">Site Password</span>
-                    <span class="setting-desc">Leave empty to disable</span>
+                    <span class="setting-label">Minimum Listen Time</span>
+                    <span class="setting-desc">Seconds before voting enabled</span>
                 </div>
-                <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
-                    placeholder="None">
+                <input type="number" id="minListenTime" class="setting-input"
+                    value="{{ settings.min_listen_time or '20' }}" min="0" max="300" style="width: 80px;">
             </div>
 
-            <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Disable Skip</span>
+                    <span class="setting-desc">Force users to vote on each song</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="disableSkip" {% if settings.disable_skip=='true' %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
         </div>
+
+        <!-- Voting Time Window -->
+        <div class="card admin-section">
+            <h2>Voting Time Window</h2>
+            <p class="setting-desc" style="margin-bottom: 16px;">Optional: limit when voting is allowed</p>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Start Date/Time</span>
+                </div>
+                <input type="datetime-local" id="votingStart" class="setting-input" value="{{ settings.voting_start }}"
+                    style="width: 200px;">
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">End Date/Time</span>
+                </div>
+                <input type="datetime-local" id="votingEnd" class="setting-input" value="{{ settings.voting_end }}"
+                    style="width: 200px;">
+            </div>
+        </div>
+
+        <!-- Results Visibility -->
+        <div class="card admin-section">
+            <h2>Results Visibility</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Show Results</span>
+                </div>
+                <select id="resultsVisibility" class="setting-select" style="width: 180px;">
+                    <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Always
+                        Public</option>
+                    <option value="until_voting_ends" {% if settings.results_visibility=='until_voting_ends'
+                        %}selected{% endif %}>After Voting Ends</option>
+                    <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden from
+                        Public</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Branding -->
+        <div class="card admin-section">
+            <h2>Branding & SEO</h2>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="setting-label">Site Title</span>
+                <input type="text" id="siteTitle" class="setting-input"
+                    value="{{ settings.site_title or 'Song Voter' }}" style="width: 100%;">
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="setting-label">Description (for sharing)</span>
+                <input type="text" id="siteDescription" class="setting-input"
+                    value="{{ settings.site_description or '' }}" style="width: 100%;"
+                    placeholder="Vote on your favorite song versions">
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="setting-label">Site URL (for share cards)</span>
+                <input type="url" id="siteUrl" class="setting-input" value="{{ settings.site_url or '' }}"
+                    style="width: 100%;" placeholder="https://example.com">
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="setting-label">OG Image URL (for Twitter/social cards)</span>
+                <input type="url" id="ogImage" class="setting-input" value="{{ settings.og_image or '' }}"
+                    style="width: 100%;" placeholder="https://example.com/image.jpg">
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <span class="setting-label">Favicon URL</span>
+                <input type="url" id="favicon" class="setting-input" value="{{ settings.favicon or '' }}"
+                    style="width: 100%;" placeholder="/static/favicon.ico">
+            </div>
+        </div>
+
+        <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save All
+            Settings</button>
 
         <!-- Songs Section -->
         <div class="card admin-section">
@@ -125,12 +211,21 @@
     </div>
 
     <script>
-        // Save Settings
+        // Save All Settings
         document.getElementById('saveSettings').addEventListener('click', async () => {
             const settings = {
-                results_public: document.getElementById('resultsPublic').checked ? 'true' : 'false',
+                site_password: document.getElementById('sitePassword').value,
                 voting_restriction: document.getElementById('votingRestriction').value,
-                site_password: document.getElementById('sitePassword').value
+                min_listen_time: document.getElementById('minListenTime').value,
+                disable_skip: document.getElementById('disableSkip').checked ? 'true' : 'false',
+                voting_start: document.getElementById('votingStart').value,
+                voting_end: document.getElementById('votingEnd').value,
+                results_visibility: document.getElementById('resultsVisibility').value,
+                site_title: document.getElementById('siteTitle').value,
+                site_description: document.getElementById('siteDescription').value,
+                site_url: document.getElementById('siteUrl').value,
+                og_image: document.getElementById('ogImage').value,
+                favicon: document.getElementById('favicon').value,
             };
 
             const res = await fetch('/admin/settings', {

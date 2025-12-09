@@ -64,9 +64,29 @@ def init_db():
     
     # Initialize default settings if not exist
     default_settings = {
-        'results_public': 'true',
+        # Access
         'site_password': '',
-        'voting_restriction': 'none'  # none, ip, cookie
+        'voting_restriction': 'none',  # none, ip, cookie
+        
+        # Results visibility: hidden, until_voting_ends, public
+        'results_visibility': 'public',
+        
+        # Voting time window (ISO format, empty = no limit)
+        'voting_start': '',
+        'voting_end': '',
+        
+        # Minimum listen time in seconds
+        'min_listen_time': '20',
+        
+        # Disable skip button
+        'disable_skip': 'false',
+        
+        # Branding
+        'site_title': 'Song Voter',
+        'site_description': 'Vote on your favorite song versions',
+        'site_url': '',
+        'og_image': '',  # URL or uploaded path
+        'favicon': '',   # URL or uploaded path
     }
     for key, value in default_settings.items():
         cursor.execute(
