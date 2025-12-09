@@ -460,6 +460,9 @@ def admin_delete_admin(admin_id):
     return jsonify({'error': 'Admin not found'}), 404
 
 
+# Initialize database on module import (works with gunicorn)
+db.init_db()
+
+
 if __name__ == '__main__':
-    db.init_db()
     app.run(host='0.0.0.0', port=5000, debug=False)
