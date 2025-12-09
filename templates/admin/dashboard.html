@@ -34,7 +34,7 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Voting Restriction</span>
-                    <span class="setting-desc">Limit votes per visitor</span>
+                    <span class="setting-desc">Limit votes per visitor (per song)</span>
                 </div>
                 <select id="votingRestriction" class="setting-select">
                     <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None</option>
@@ -47,10 +47,10 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Site Password</span>
-                    <span class="setting-desc">Require password to access site (leave empty to disable)</span>
+                    <span class="setting-desc">Leave empty to disable</span>
                 </div>
-                <input type="text" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
-                    placeholder="No password">
+                <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
+                    placeholder="None">
             </div>
 
             <button id="saveSettings" class="btn btn-primary">Save Settings</button>
@@ -72,9 +72,15 @@
                 <div id="uploadStatus" class="upload-status"></div>
             </div>
 
+            <div class="bulk-delete-bar" id="bulkDeleteBar">
+                <span><strong id="selectedCount">0</strong> selected</span>
+                <button id="bulkDeleteBtn" class="btn btn-danger">Delete Selected</button>
+            </div>
+
             <div class="songs-list" id="songsList">
                 {% for song in songs %}
                 <div class="song-item" data-id="{{ song.id }}">
+                    <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
                     <div class="song-info">
                         <span class="song-name">{{ song.filename }}</span>
                         <span class="song-base">{{ song.base_name }}</span>
@@ -96,8 +102,11 @@
             <div class="admins-list" id="adminsList">
                 {% for admin in admins %}
                 <div class="admin-item" data-id="{{ admin.id }}">
-                    <span class="admin-name">{{ admin.username }}</span>
+                    <span class="admin-name">{{ admin.username }}{% if loop.first %} <small
+                            style="color: var(--text-muted);">(owner)</small>{% endif %}</span>
+                    {% if not loop.first %}
                     <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}" title="Delete">✕</button>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -105,7 +114,7 @@
             <div class="add-admin-form">
                 <input type="text" id="newAdminUsername" placeholder="Username">
                 <input type="password" id="newAdminPassword" placeholder="Password">
-                <button id="addAdmin" class="btn btn-secondary">Add Admin</button>
+                <button id="addAdmin" class="btn btn-secondary">Add</button>
             </div>
         </div>
 
@@ -197,7 +206,34 @@
             }
         });
 
-        // Delete Song
+        // Bulk Select
+        const checkboxes = document.querySelectorAll('.song-checkbox');
+        const bulkDeleteBar = document.getElementById('bulkDeleteBar');
+        const selectedCount = document.getElementById('selectedCount');
+
+        function updateBulkBar() {
+            const checked = document.querySelectorAll('.song-checkbox:checked').length;
+            selectedCount.textContent = checked;
+            bulkDeleteBar.classList.toggle('visible', checked > 0);
+        }
+
+        checkboxes.forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+        // Bulk Delete
+        document.getElementById('bulkDeleteBtn').addEventListener('click', async () => {
+            const selected = [...document.querySelectorAll('.song-checkbox:checked')];
+            if (!selected.length) return;
+
+            if (!confirm(`Delete ${selected.length} song(s) and their votes?`)) return;
+
+            for (const cb of selected) {
+                const id = cb.dataset.id;
+                await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
+            }
+            location.reload();
+        });
+
+        // Delete Song (individual)
         document.querySelectorAll('.delete-song').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 if (!confirm('Delete this song and its votes?')) return;

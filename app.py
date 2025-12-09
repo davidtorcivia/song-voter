@@ -455,6 +455,11 @@ def admin_delete_admin(admin_id):
     if db.admin_count() <= 1:
         return jsonify({'error': 'Cannot delete the last admin'}), 400
     
+    # Protect first admin (owner)
+    first_admin = db.get_first_admin()
+    if first_admin and first_admin['id'] == admin_id:
+        return jsonify({'error': 'Cannot delete the owner admin'}), 400
+    
     if db.delete_admin(admin_id):
         return jsonify({'success': True})
     return jsonify({'error': 'Admin not found'}), 404

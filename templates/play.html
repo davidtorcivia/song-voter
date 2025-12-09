@@ -11,38 +11,40 @@
 <body>
     <div class="container">
         <h1 id="pageTitle">{{ song.base_name }}</h1>
+        <p class="play-subtitle">{{ song.filename }}</p>
 
-        <div class="card">
-            <div class="song-name">{{ song.filename }}</div>
-
-            <!-- Simple Visualizer -->
-            <div class="visualizer-container">
-                <canvas id="visualizer"></canvas>
-            </div>
-
-            <!-- Audio Controls -->
-            <div class="audio-controls">
-                <div class="progress-container" id="progressBar">
-                    <div class="progress-fill" id="progressFill"></div>
-                    <div class="playhead" id="playhead"></div>
+        <!-- Player Section - reuses main app styling -->
+        <div class="player-section" style="display: block;">
+            <div class="card">
+                <!-- Visualizer -->
+                <div class="visualizer-container">
+                    <canvas id="visualizer"></canvas>
                 </div>
 
-                <div class="time-display">
-                    <span id="currentTime">0:00</span>
-                    <span id="totalTime">0:00</span>
-                </div>
+                <!-- Audio Controls -->
+                <div class="audio-controls">
+                    <div class="progress-container" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="playhead" id="playhead"></div>
+                    </div>
 
-                <div class="controls-row">
-                    <button id="playBtn" class="control-btn">▶</button>
-                    <div class="volume-control">
-                        <span class="volume-icon">🔊</span>
-                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
-                            value="1">
+                    <div class="time-display">
+                        <span id="currentTime">0:00</span>
+                        <span id="totalTime">0:00</span>
+                    </div>
+
+                    <div class="controls-row">
+                        <button id="playBtn" class="control-btn">▶</button>
+                        <div class="volume-control">
+                            <span class="volume-icon">🔊</span>
+                            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
+                                value="1">
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <audio id="audioPlayer" preload="auto"></audio>
+                <audio id="audioPlayer" preload="auto"></audio>
+            </div>
         </div>
 
         <div class="nav-footer">
@@ -52,17 +54,17 @@
     </div>
 
     <script>
-        // Simple audio player for single song
-        class SimplePLayer {
+        class SimplePlayer {
             constructor(songId) {
                 this.audio = document.getElementById('audioPlayer');
                 this.playBtn = document.getElementById('playBtn');
                 this.progressBar = document.getElementById('progressBar');
                 this.progressFill = document.getElementById('progressFill');
                 this.playhead = document.getElementById('playhead');
-                this.currentTime = document.getElementById('currentTime');
-                this.totalTime = document.getElementById('totalTime');
+                this.currentTimeEl = document.getElementById('currentTime');
+                this.totalTimeEl = document.getElementById('totalTime');
                 this.volumeSlider = document.getElementById('volumeSlider');
+                this.canvas = document.getElementById('visualizer');
 
                 this.isPlaying = false;
                 this.audioContext = null;
@@ -74,6 +76,10 @@
             init(songId) {
                 this.audio.src = `/api/songs/${songId}/audio`;
 
+                // Resize visualizer
+                this.resizeVisualizer();
+                window.addEventListener('resize', () => this.resizeVisualizer());
+
                 // Event listeners
                 this.playBtn.addEventListener('click', () => this.togglePlay());
                 this.progressBar.addEventListener('click', (e) => this.seek(e));
@@ -81,14 +87,26 @@
                     this.audio.volume = this.volumeSlider.value;
                 });
 
+                // Seek drag
+                let isDragging = false;
+                this.progressBar.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    this.seekFromEvent(e);
+                });
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) this.seekFromEvent(e);
+                });
+                document.addEventListener('mouseup', () => isDragging = false);
+
                 this.audio.addEventListener('timeupdate', () => this.updateProgress());
                 this.audio.addEventListener('loadedmetadata', () => {
-                    this.totalTime.textContent = this.formatTime(this.audio.duration);
+                    this.totalTimeEl.textContent = this.formatTime(this.audio.duration);
                 });
                 this.audio.addEventListener('play', () => {
                     this.isPlaying = true;
                     this.playBtn.textContent = '❙❙';
                     if (!this.audioContext) this.setupVisualizer();
+                    else if (this.audioContext.state === 'suspended') this.audioContext.resume();
                 });
                 this.audio.addEventListener('pause', () => {
                     this.isPlaying = false;
@@ -104,6 +122,12 @@
                 });
             }
 
+            resizeVisualizer() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.offsetWidth * window.devicePixelRatio;
+                this.canvas.height = container.offsetHeight * window.devicePixelRatio;
+            }
+
             togglePlay() {
                 if (this.isPlaying) {
                     this.audio.pause();
@@ -113,19 +137,27 @@
             }
 
             seek(e) {
+                this.seekFromEvent(e);
+            }
+
+            seekFromEvent(e) {
                 const rect = this.progressBar.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                this.audio.currentTime = percent * this.audio.duration;
+                let percent = (e.clientX - rect.left) / rect.width;
+                percent = Math.max(0, Math.min(1, percent));
+                if (!isNaN(this.audio.duration)) {
+                    this.audio.currentTime = percent * this.audio.duration;
+                }
             }
 
             updateProgress() {
                 const percent = (this.audio.currentTime / this.audio.duration) * 100;
                 this.progressFill.style.width = `${percent}%`;
                 this.playhead.style.left = `calc(${percent}% - 5px)`;
-                this.currentTime.textContent = this.formatTime(this.audio.currentTime);
+                this.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
             }
 
             formatTime(sec) {
+                if (isNaN(sec)) return '0:00';
                 const m = Math.floor(sec / 60);
                 const s = Math.floor(sec % 60);
                 return `${m}:${s.toString().padStart(2, '0')}`;
@@ -142,8 +174,7 @@
             }
 
             drawVisualizer() {
-                const canvas = document.getElementById('visualizer');
-                const ctx = canvas.getContext('2d');
+                const ctx = this.canvas.getContext('2d');
                 const bufferLength = this.analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
 
@@ -151,23 +182,26 @@
                     requestAnimationFrame(draw);
                     this.analyser.getByteFrequencyData(dataArray);
 
-                    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-                    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-                    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                    const width = this.canvas.offsetWidth;
+                    const height = this.canvas.offsetHeight;
 
-                    const width = canvas.offsetWidth;
-                    const height = canvas.offsetHeight;
+                    // Set canvas size for retina
+                    this.canvas.width = width * window.devicePixelRatio;
+                    this.canvas.height = height * window.devicePixelRatio;
+                    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
                     ctx.clearRect(0, 0, width, height);
 
-                    const barWidth = width / bufferLength * 2;
+                    const barWidth = width / bufferLength * 2.5;
                     let x = 0;
 
                     for (let i = 0; i < bufferLength; i++) {
-                        const barHeight = (dataArray[i] / 255) * height * 0.8;
-                        const hue = 220 + (dataArray[i] / 255) * 40;
-                        ctx.fillStyle = `hsla(${hue}, 60%, 60%, 0.8)`;
-                        ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+                        const barHeight = (dataArray[i] / 255) * height * 0.85;
+                        // Warm esoteric colors: deep purple to warm gold
+                        const hue = 280 - (dataArray[i] / 255) * 60; // Purple to magenta
+                        const lightness = 40 + (dataArray[i] / 255) * 25;
+                        ctx.fillStyle = `hsla(${hue}, 50%, ${lightness}%, 0.85)`;
+                        ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
                         x += barWidth;
                     }
                 };
@@ -176,7 +210,7 @@
         }
 
         // Initialize
-        new SimplePLayer({{ song.id }});
+        new SimplePlayer({{ song.id }});
     </script>
 </body>
 

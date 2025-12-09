@@ -200,6 +200,17 @@ def admin_count():
     return count
 
 
+def get_first_admin():
+    """Get the first (owner) admin by lowest ID."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1')
+    row = cursor.fetchone()
+    admin = dict(row) if row else None
+    conn.close()
+    return admin
+
+
 # ============ Songs ============
 
 def add_song(filename, full_path):

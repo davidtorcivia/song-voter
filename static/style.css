@@ -1224,3 +1224,106 @@ label {
 .results-table .song-link:hover {
     color: var(--accent-warm);
 }
+
+/* Play Page */
+.play-subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: -16px;
+    margin-bottom: 24px;
+}
+
+/* Upload Area */
+.upload-area {
+    margin: 16px 0;
+    padding: 16px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+}
+
+.upload-status {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Better Admin Forms */
+.admin-form input[type="password"],
+.add-admin-form input[type="password"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.admin-form input[type="password"]:focus,
+.add-admin-form input[type="password"]:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.1);
+}
+
+/* Site Password - inline layout */
+.setting-row .setting-input {
+    width: 140px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+/* Songs list - cleaner */
+.songs-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 16px;
+}
+
+/* Checkbox for bulk delete */
+.song-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    margin-right: 12px;
+    cursor: pointer;
+}
+
+/* Better delete button */
+.btn-icon.btn-danger {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+
+.btn-icon.btn-danger:hover {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* Bulk delete bar */
+.bulk-delete-bar {
+    display: none;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bulk-delete-bar.visible {
+    display: flex;
+}
+
+.bulk-delete-bar span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
