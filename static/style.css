@@ -535,19 +535,20 @@ label {
 /* Feedback Message */
 .feedback {
     position: fixed;
-    bottom: 24px;
+    top: 24px;
     left: 50%;
-    transform: translateX(-50%) translateY(8px);
+    transform: translateX(-50%) translateY(-20px);
     background: var(--bg-card);
     color: var(--text-primary);
-    padding: 12px 20px;
+    padding: 14px 24px;
     border-radius: var(--radius);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     font-weight: 500;
     opacity: 0;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     z-index: 100;
     border: 1px solid var(--border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .feedback.show {

@@ -623,7 +623,7 @@ class SongVoter {
 
         setTimeout(() => {
             this.feedback.classList.remove('show');
-        }, 1500);
+        }, 3000);
     }
 }
 
