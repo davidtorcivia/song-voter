@@ -449,7 +449,7 @@ class SongVoter {
         this.thumbUpBtn.classList.remove('selected');
         this.thumbDownBtn.classList.remove('selected');
         this.ratingSlider.value = 5;
-        this.ratingValue.textContent = '5';
+        this.updateRating(); // Initialize rating color
 
         // Reset listening time tracking
         this.stopListenTimer();
@@ -563,7 +563,25 @@ class SongVoter {
     }
 
     updateRating() {
-        this.ratingValue.textContent = this.ratingSlider.value;
+        const value = parseInt(this.ratingSlider.value);
+        this.ratingValue.textContent = value;
+
+        // Color gradient: red (1) -> yellow (5) -> green (10)
+        let r, g, b;
+        if (value <= 5) {
+            // Red to yellow (1-5)
+            const t = (value - 1) / 4;
+            r = 220;
+            g = Math.round(60 + t * 160); // 60 -> 220
+            b = 60;
+        } else {
+            // Yellow to green (6-10)
+            const t = (value - 5) / 5;
+            r = Math.round(220 - t * 140); // 220 -> 80
+            g = Math.round(220 - t * 20); // 220 -> 200
+            b = Math.round(60 + t * 40); // 60 -> 100
+        }
+        this.ratingValue.style.color = `rgb(${r}, ${g}, ${b})`;
     }
 
     async submitVote() {

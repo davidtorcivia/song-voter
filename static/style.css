@@ -52,7 +52,7 @@ body {
 }
 
 .container {
-    max-width: 420px;
+    max-width: 480px;
     margin: 0 auto;
     padding: 48px 24px;
     min-height: 100vh;
@@ -398,53 +398,55 @@ label {
 .thumbs-container {
     display: flex;
     justify-content: center;
-    gap: 24px;
-    margin-bottom: 32px;
+    gap: 48px;
+    margin-bottom: 24px;
+}
+
+.thumb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
 }
 
 .thumb-btn {
-    width: 64px;
-    height: 64px;
-    font-size: 1.5rem;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    background: transparent;
+    border: none;
     cursor: pointer;
     transition: var(--transition);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-primary);
+    color: var(--text-secondary);
+    font-size: 3rem;
     line-height: 1;
-    text-align: center;
-    padding-top: 2px;
+    padding: 8px 16px;
 }
 
 .thumb-btn:hover {
-    border-color: var(--border-hover);
-    background: var(--bg-elevated);
+    color: var(--text-primary);
+    transform: scale(1.1);
 }
 
 .thumb-btn.up.selected {
-    background: var(--positive-muted);
-    border-color: var(--positive);
     color: var(--positive);
 }
 
 .thumb-btn.down.selected {
-    background: var(--danger-muted);
-    border-color: var(--danger);
     color: var(--danger);
 }
 
 .thumb-btn:disabled {
-    opacity: 0.35;
+    opacity: 0.25;
     cursor: not-allowed;
 }
 
 .thumb-btn:disabled:hover {
-    background: var(--bg-secondary);
-    border-color: var(--border);
+    transform: none;
+}
+
+.thumb-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
 
 /* Rating */
@@ -452,18 +454,17 @@ label {
     margin-bottom: 24px;
 }
 
-.rating-label {
+.rating-display {
     text-align: center;
-    margin-bottom: 16px;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
+    margin-bottom: 12px;
 }
 
 .rating-value {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 600;
-    color: var(--text-primary);
     font-variant-numeric: tabular-nums;
+    /* Default color, will be overridden by JS */
+    color: var(--text-primary);
 }
 
 .rating-slider {
@@ -604,14 +605,17 @@ label {
 
 /* Help Page */
 .help-content {
-    line-height: 1.8;
+    line-height: 2;
+    padding: 8px;
 }
 
 .help-content h2 {
-    font-size: 1rem;
-    margin-top: 24px;
-    margin-bottom: 12px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-top: 32px;
+    margin-bottom: 16px;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
 .help-content h2:first-child {
@@ -620,21 +624,46 @@ label {
 
 .help-content p {
     color: var(--text-secondary);
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
 }
 
 .help-content ul {
     color: var(--text-secondary);
-    padding-left: 20px;
-    margin-bottom: 12px;
+    padding-left: 0;
+    margin-bottom: 20px;
+    list-style: none;
 }
 
 .help-content li {
-    margin-bottom: 6px;
+    margin-bottom: 12px;
+    padding-left: 20px;
+    position: relative;
+    font-size: 0.9rem;
+}
+
+.help-content li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--text-muted);
 }
 
 .help-content a {
     color: var(--accent-warm);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent-warm);
+    transition: var(--transition);
+}
+
+.help-content a:hover {
+    color: var(--text-primary);
+    border-color: var(--text-primary);
+}
+
+.help-content strong {
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 /* Results Page */
