@@ -291,6 +291,14 @@ label {
     gap: 16px;
 }
 
+#playBtn {
+    font-size: 1.5rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    margin-top: 0;
+}
+
 /* Cast Button */
 .cast-btn {
     font-size: 1rem;
