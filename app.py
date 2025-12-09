@@ -29,6 +29,12 @@ def results():
     return render_template('results.html')
 
 
+@app.route('/help')
+def help_page():
+    """Serve the help page."""
+    return render_template('help.html')
+
+
 @app.route('/api/songs', methods=['GET'])
 def get_songs():
     """Get all songs, optionally filtered by base_name."""

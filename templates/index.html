@@ -34,7 +34,10 @@
                 Begin ▶
             </button>
 
-            <a href="/results" class="nav-link">◈ Results</a>
+            <div class="nav-footer">
+                <a href="/help" class="nav-link">? Help</a>
+                <a href="/results" class="nav-link">◈ Results</a>
+            </div>
         </div>
 
         <!-- Player Section -->
@@ -75,11 +78,18 @@
             <!-- Voting Section -->
             <div class="card voting-section">
                 <div class="thumbs-container">
-                    <button id="thumbDownBtn" class="thumb-btn down">▽</button>
-                    <button id="thumbUpBtn" class="thumb-btn up">△</button>
+                    <div class="thumb-group">
+                        <button id="thumbDownBtn" class="thumb-btn down">▽</button>
+                        <span class="thumb-label">Pass</span>
+                    </div>
+                    <div class="thumb-group">
+                        <button id="thumbUpBtn" class="thumb-btn up">△</button>
+                        <span class="thumb-label">Keep</span>
+                    </div>
                 </div>
 
                 <div class="rating-container">
+                    <div class="rating-header">Rating</div>
                     <div class="rating-label">
                         <span class="rating-value" id="ratingValue">5</span>
                     </div>
@@ -97,7 +107,10 @@
                 </div>
             </div>
 
-            <a href="/results" class="nav-link">◈ Results</a>
+            <div class="nav-footer">
+                <a href="/help" class="nav-link">? Help</a>
+                <a href="/results" class="nav-link">◈ Results</a>
+            </div>
         </div>
 
         <!-- Feedback Toast -->

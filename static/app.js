@@ -88,6 +88,54 @@ class SongVoter {
 
         // Handle browser back button
         window.addEventListener('popstate', (e) => this.handleBackButton(e));
+
+        // Playhead dragging
+        this.initSeekDrag();
+    }
+
+    initSeekDrag() {
+        let isDragging = false;
+
+        const startDrag = (e) => {
+            isDragging = true;
+            this.seekFromEvent(e);
+        };
+
+        const doDrag = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            this.seekFromEvent(e);
+        };
+
+        const endDrag = () => {
+            isDragging = false;
+        };
+
+        // Mouse events
+        this.progressBar.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        // Touch events
+        this.progressBar.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            this.seekFromEvent(e.touches[0]);
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            this.seekFromEvent(e.touches[0]);
+        }, { passive: true });
+        document.addEventListener('touchend', endDrag);
+    }
+
+    seekFromEvent(e) {
+        const rect = this.progressBar.getBoundingClientRect();
+        const x = e.clientX !== undefined ? e.clientX : e.pageX;
+        let percent = (x - rect.left) / rect.width;
+        percent = Math.max(0, Math.min(1, percent));
+        if (!isNaN(this.audio.duration)) {
+            this.audio.currentTime = percent * this.audio.duration;
+        }
     }
 
     initKeyboardControls() {
