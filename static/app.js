@@ -326,42 +326,32 @@ class SongVoter {
     // === Auto Load ===
 
     async autoLoadSongs() {
-        this.loadingIndicator.style.display = 'block';
-
-        // Try to load from cache first
-        const cache = localStorage.getItem('sv_songs_cache');
-        if (cache) {
-            try {
-                const data = JSON.parse(cache);
-                // Basic validation: 1 hour freshness check or just load it
-                if (data && data.songs && data.songs.length > 0) {
-                    console.log('Loaded songs from cache');
-                    this.songs = data.songs;
-                    this.baseNames = data.base_names || [];
-                    this.populateModeSelect();
-                    this.startBtn.disabled = false;
-                    this.loadingIndicator.style.display = 'none';
-
-                    // Background refresh
-                    this.refreshSongsCache();
-                    return;
-                }
-            } catch (e) {
-                console.warn('Cache invalid', e);
+        // Use server-injected data if available (Server-Side Caching)
+        if (window.INITIAL_SONGS && window.INITIAL_SONGS.length > 0) {
+            console.log('Loaded songs from server injection');
+            this.songs = window.INITIAL_SONGS;
+            this.baseNames = window.INITIAL_BASE_NAMES || [];
+            this.populateModeSelect();
+            this.startBtn.disabled = false;
+            // Hide loading indicator immediately
+            if (this.loadingIndicator) {
+                this.loadingIndicator.style.display = 'none';
             }
+            return;
+        }
+
+        if (this.loadingIndicator) {
+            this.loadingIndicator.style.display = 'block';
         }
 
         try {
-            // First try to get existing songs
+            // First try to get existing songs via API if injection missing/empty
             const response = await fetch('/api/songs');
             const data = await response.json();
 
             if (data.songs && data.songs.length > 0) {
                 this.songs = data.songs;
                 this.baseNames = data.base_names || [];
-
-                // Cache it
-                this.cacheSongs(data);
 
                 await this.loadBaseNames();
                 this.startBtn.disabled = false;
@@ -383,31 +373,6 @@ class SongVoter {
         }
     }
 
-    cacheSongs(data) {
-        try {
-            const cache = {
-                songs: data.songs,
-                base_names: data.base_names,
-                timestamp: Date.now()
-            };
-            localStorage.setItem('sv_songs_cache', JSON.stringify(cache));
-        } catch (e) {
-            console.warn('Failed to save cache', e);
-        }
-    }
-
-    async refreshSongsCache() {
-        try {
-            const response = await fetch('/api/songs');
-            const data = await response.json();
-            if (data.songs && data.songs.length > 0) {
-                this.cacheSongs(data);
-            }
-        } catch (err) {
-            console.error('Background cache refresh failed', err);
-        }
-    }
-
     async scanSongs() {
         if (this.scanBtn) {
             this.scanBtn.disabled = true;
@@ -421,8 +386,6 @@ class SongVoter {
             if (data.success) {
                 this.songs = data.songs;
                 this.baseNames = data.base_names;
-
-                this.cacheSongs(data);
 
                 this.populateModeSelect();
                 this.startBtn.disabled = this.songs.length === 0;

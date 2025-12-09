@@ -61,6 +61,20 @@ def check_site_password():
     return True
 
 
+def run_scan():
+    """Scan the songs directory for audio files (internal usage)."""
+    if not os.path.exists(SONGS_DIR):
+        return 0
+    
+    count = 0
+    for filename in os.listdir(SONGS_DIR):
+        if filename.lower().endswith(SUPPORTED_EXTENSIONS):
+            full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
+            db.add_song(filename, full_path)
+            count += 1
+    return count
+
+
 @app.before_request
 def before_request():
     """Check site password before each request."""
@@ -127,7 +141,19 @@ def index():
         'og_image': db.get_setting('og_image', ''),
         'favicon': db.get_setting('favicon', '/static/favicon.ico'),
     }
-    return render_template('index.html', branding=branding)
+    }
+    
+    # Server-side caching: Get songs from DB
+    songs = db.get_all_songs()
+    
+    # If DB is empty, run a scan automatically so first load isn't empty
+    if not songs:
+        run_scan()
+        songs = db.get_all_songs()
+        
+    base_names = db.get_unique_base_names()
+    
+    return render_template('index.html', branding=branding, songs=songs, base_names=base_names)
 
 
 @app.route('/results')
@@ -376,12 +402,7 @@ def scan_folder():
     if not os.path.exists(SONGS_DIR):
         return jsonify({'error': f'Songs directory not found: {SONGS_DIR}'}), 400
     
-    count = 0
-    for filename in os.listdir(SONGS_DIR):
-        if filename.lower().endswith(SUPPORTED_EXTENSIONS):
-            full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
-            db.add_song(filename, full_path)
-            count += 1
+    count = run_scan()
     
     songs = db.get_all_songs()
     base_names = db.get_unique_base_names()

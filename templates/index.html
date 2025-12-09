@@ -134,6 +134,10 @@
     <!-- Audio element -->
     <audio id="audioPlayer" crossorigin="anonymous" style="display: none;"></audio>
 
+    <script>
+        window.INITIAL_SONGS = {{ songs | tojson | safe }};
+        window.INITIAL_BASE_NAMES = {{ base_names | tojson | safe }};
+    </script>
     <script src="/static/app.js"></script>
 </body>
 
