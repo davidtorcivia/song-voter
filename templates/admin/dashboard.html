@@ -12,18 +12,46 @@
             max-width: 560px;
         }
 
+        /* Styled modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .modal-box p {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
         /* Number input styling */
-        input[type="number"] {
-            -webkit-appearance: textfield;
-            -moz-appearance: textfield;
-            appearance: textfield;
-        }
-
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-        }
-
         .number-input-group {
             display: flex;
             align-items: center;
@@ -51,35 +79,48 @@
 
         /* Better scrollbar */
         .songs-list::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
 
         .songs-list::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
-            border-radius: 4px;
+            background: transparent;
         }
 
         .songs-list::-webkit-scrollbar-thumb {
             background: var(--border);
-            border-radius: 4px;
+            border-radius: 3px;
         }
 
-        .songs-list::-webkit-scrollbar-thumb:hover {
-            background: var(--text-muted);
-        }
-
-        /* Song item - cleaner layout */
+        /* Compact song item - single line */
         .song-item {
-            display: grid;
-            grid-template-columns: 24px 1fr auto;
-            gap: 12px;
+            display: flex;
             align-items: center;
-            padding: 10px 12px;
+            gap: 10px;
+            padding: 8px 0;
             border-bottom: 1px solid var(--border);
         }
 
         .song-item:last-child {
             border-bottom: none;
+        }
+
+        .song-item .song-checkbox {
+            flex-shrink: 0;
+        }
+
+        .song-item .song-name {
+            flex: 1;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-item .song-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
         }
 
         /* Custom checkbox */
@@ -113,15 +154,18 @@
         }
 
         /* Song actions */
-        .song-actions {
-            display: flex;
-            gap: 8px;
+        .song-actions .btn-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 0.7rem;
         }
 
-        .song-actions .btn-icon {
-            width: 28px;
-            height: 28px;
-            font-size: 0.75rem;
+        /* Actions bar */
+        .actions-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
         }
 
         /* Asset upload */
@@ -133,21 +177,37 @@
         }
 
         .asset-preview {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             object-fit: contain;
             border-radius: 4px;
             background: var(--bg-elevated);
-        }
-
-        .asset-actions {
-            display: flex;
-            gap: 4px;
         }
     </style>
 </head>
 
 <body>
+    <!-- Modal for alerts -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-box">
+            <p id="modalMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <p id="confirmMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeConfirm(false)">Cancel</button>
+                <button class="btn btn-danger" onclick="closeConfirm(true)">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container admin-container">
         <div class="admin-header">
             <h1>Admin</h1>
@@ -161,16 +221,14 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Site Password</span>
-                    <span class="setting-desc">Leave empty to disable</span>
                 </div>
                 <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
-                    placeholder="None">
+                    placeholder="None" style="width: 120px;">
             </div>
 
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Voting Restriction</span>
-                    <span class="setting-desc">Limit one vote per song</span>
                 </div>
                 <select id="votingRestriction" class="setting-select">
                     <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None</option>
@@ -182,14 +240,13 @@
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">Minimum Listen Time</span>
-                    <span class="setting-desc">Seconds before voting</span>
+                    <span class="setting-label">Min Listen Time (sec)</span>
                 </div>
                 <div class="number-input-group">
-                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', -5)">−</button>
+                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', -5)">-</button>
                     <input type="number" id="minListenTime" class="setting-input"
                         value="{{ settings.min_listen_time or '20' }}" min="0" max="300"
-                        style="width: 60px; text-align: center;">
+                        style="width: 50px; text-align: center;">
                     <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', 5)">+</button>
                 </div>
             </div>
@@ -197,50 +254,34 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Disable Skip</span>
-                    <span class="setting-desc">Force users to vote</span>
                 </div>
                 <label class="toggle">
                     <input type="checkbox" id="disableSkip" {% if settings.disable_skip=='true' %}checked{% endif %}>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-        </div>
-
-        <!-- Voting Time Window -->
-        <div class="card admin-section">
-            <h2>Voting Window</h2>
-            <p class="setting-desc" style="margin-bottom: 16px;">Optional: limit when voting is allowed</p>
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">Start</span>
+                    <span class="setting-label">Voting Window</span>
                 </div>
-                <input type="datetime-local" id="votingStart" class="setting-input" value="{{ settings.voting_start }}"
-                    style="width: 180px;">
+                <div style="display: flex; gap: 8px; flex-direction: column;">
+                    <input type="datetime-local" id="votingStart" class="setting-input"
+                        value="{{ settings.voting_start }}" style="width: 160px;" placeholder="Start">
+                    <input type="datetime-local" id="votingEnd" class="setting-input" value="{{ settings.voting_end }}"
+                        style="width: 160px;" placeholder="End">
+                </div>
             </div>
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">End</span>
+                    <span class="setting-label">Results Visibility</span>
                 </div>
-                <input type="datetime-local" id="votingEnd" class="setting-input" value="{{ settings.voting_end }}"
-                    style="width: 180px;">
-            </div>
-        </div>
-
-        <!-- Results Visibility -->
-        <div class="card admin-section">
-            <h2>Results Visibility</h2>
-
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Show Results</span>
-                </div>
-                <select id="resultsVisibility" class="setting-select" style="width: 160px;">
-                    <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Always
-                        Public</option>
+                <select id="resultsVisibility" class="setting-select">
+                    <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Public
+                    </option>
                     <option value="until_voting_ends" {% if settings.results_visibility=='until_voting_ends'
-                        %}selected{% endif %}>After Voting Ends</option>
+                        %}selected{% endif %}>After Voting</option>
                     <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden
                     </option>
                 </select>
@@ -249,87 +290,80 @@
 
         <!-- Branding -->
         <div class="card admin-section">
-            <h2>Branding & SEO</h2>
+            <h2>Branding</h2>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
                 <span class="setting-label">Site Title</span>
                 <input type="text" id="siteTitle" class="setting-input"
                     value="{{ settings.site_title or 'Song Voter' }}" style="width: 100%;">
             </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
                 <span class="setting-label">Description</span>
                 <input type="text" id="siteDescription" class="setting-input"
                     value="{{ settings.site_description or '' }}" style="width: 100%;"
-                    placeholder="Vote on your favorite song versions">
+                    placeholder="Vote on your favorite songs">
             </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
                 <span class="setting-label">Site URL</span>
                 <input type="url" id="siteUrl" class="setting-input" value="{{ settings.site_url or '' }}"
-                    style="width: 100%;" placeholder="https://example.com">
+                    style="width: 100%;" placeholder="https://...">
             </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div class="setting-row">
                 <span class="setting-label">Favicon</span>
                 <div class="asset-upload">
                     {% if settings.favicon %}
                     <img src="{{ settings.favicon }}" class="asset-preview" id="faviconPreview">
+                    <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
+                        onclick="deleteAsset('favicon')">&#10005;</button>
                     {% endif %}
-                    <input type="file" id="faviconFile" accept=".ico,.png,.jpg,.jpeg,.webp" hidden>
-                    <button type="button" class="btn btn-secondary"
+                    <input type="file" id="faviconFile" accept=".ico,.png,.jpg,.jpeg,.webp,.gif" hidden>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
                         onclick="document.getElementById('faviconFile').click()">Upload</button>
-                    {% if settings.favicon %}
-                    <button type="button" class="btn btn-danger" onclick="deleteAsset('favicon')">Delete</button>
-                    {% endif %}
                 </div>
             </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="setting-label">OG Image (for social sharing)</span>
+            <div class="setting-row">
+                <span class="setting-label">OG Image</span>
                 <div class="asset-upload">
                     {% if settings.og_image %}
                     <img src="{{ settings.og_image }}" class="asset-preview" id="ogImagePreview">
+                    <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
+                        onclick="deleteAsset('og_image')">&#10005;</button>
                     {% endif %}
                     <input type="file" id="ogImageFile" accept=".png,.jpg,.jpeg,.webp" hidden>
-                    <button type="button" class="btn btn-secondary"
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
                         onclick="document.getElementById('ogImageFile').click()">Upload</button>
-                    {% if settings.og_image %}
-                    <button type="button" class="btn btn-danger" onclick="deleteAsset('og_image')">Delete</button>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save All
+        <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
             Settings</button>
 
         <!-- Songs Section -->
         <div class="card admin-section">
             <h2>Songs ({{ songs|length }})</h2>
 
-            <div class="songs-actions" style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <div class="actions-bar">
                 <button id="scanSongs" class="btn btn-secondary">Scan Folder</button>
                 <input type="file" id="songUpload" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
-                <button id="uploadBtn" class="btn btn-primary">Upload</button>
+                <button id="uploadBtn" class="btn btn-secondary">Upload</button>
+                <span id="uploadStatus" style="font-size: 0.75rem; color: var(--text-muted);"></span>
             </div>
-
-            <div id="uploadStatus" class="upload-status"></div>
 
             <div class="bulk-delete-bar" id="bulkDeleteBar">
                 <span><strong id="selectedCount">0</strong> selected</span>
-                <button id="bulkDeleteBtn" class="btn btn-danger">Delete Selected</button>
+                <button id="bulkDeleteBtn" class="btn btn-danger">Delete</button>
             </div>
 
-            <div class="songs-list" id="songsList">
+            <div class="songs-list" id="songsList" style="max-height: 300px; overflow-y: auto;">
                 {% for song in songs %}
                 <div class="song-item" data-id="{{ song.id }}">
                     <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
-                    <div class="song-info">
-                        <span class="song-name">{{ song.filename }}</span>
-                        <span class="song-base" style="font-size: 0.75rem; color: var(--text-muted);">{{ song.base_name
-                            }}</span>
-                    </div>
+                    <span class="song-name">{{ song.filename }}</span>
                     <div class="song-actions">
                         <a href="/play/{{ song.id }}" class="btn-icon" title="Play">&#9654;</a>
                         <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
@@ -342,7 +376,7 @@
 
         <!-- Admin Users Section -->
         <div class="card admin-section">
-            <h2>Admin Users</h2>
+            <h2>Admins</h2>
 
             <div class="admins-list" id="adminsList">
                 {% for admin in admins %}
@@ -357,20 +391,48 @@
                 {% endfor %}
             </div>
 
-            <div class="add-admin-form">
-                <input type="text" id="newAdminUsername" placeholder="Username">
-                <input type="password" id="newAdminPassword" placeholder="Password">
+            <div class="add-admin-form" style="margin-top: 12px;">
+                <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1;">
+                <input type="password" id="newAdminPassword" placeholder="Password" style="flex: 1;">
                 <button id="addAdmin" class="btn btn-secondary">Add</button>
             </div>
         </div>
 
         <div class="nav-footer">
-            <a href="/" class="nav-link">&#8592; Back to Site</a>
+            <a href="/" class="nav-link">&#8592; Back</a>
             <a href="/results" class="nav-link">Results</a>
         </div>
     </div>
 
     <script>
+        // Custom styled modal
+        let confirmCallback = null;
+
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modal').classList.add('visible');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('visible');
+        }
+
+        function showConfirm(message) {
+            return new Promise(resolve => {
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('visible');
+                confirmCallback = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            document.getElementById('confirmModal').classList.remove('visible');
+            if (confirmCallback) {
+                confirmCallback(result);
+                confirmCallback = null;
+            }
+        }
+
         // Number input adjustment
         function adjustNumber(id, delta) {
             const input = document.getElementById(id);
@@ -394,16 +456,20 @@
                 site_url: document.getElementById('siteUrl').value,
             };
 
-            const res = await fetch('/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            });
+            try {
+                const res = await fetch('/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
 
-            if (res.ok) {
-                alert('Settings saved!');
-            } else {
-                alert('Failed to save settings');
+                if (res.ok) {
+                    showModal('Settings saved!');
+                } else {
+                    showModal('Failed to save settings');
+                }
+            } catch (err) {
+                showModal('Error saving settings');
             }
         });
 
@@ -419,21 +485,26 @@
             formData.append('file', file);
             formData.append('type', type);
 
-            const res = await fetch('/admin/upload-asset', {
-                method: 'POST',
-                body: formData
-            });
+            try {
+                const res = await fetch('/admin/upload-asset', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            if (res.ok) {
-                location.reload();
-            } else {
-                const data = await res.json();
-                alert(data.error);
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    const data = await res.json();
+                    showModal(data.error || 'Upload failed');
+                }
+            } catch (err) {
+                showModal('Upload error');
             }
         }
 
         async function deleteAsset(type) {
-            if (!confirm(`Delete ${type}?`)) return;
+            const confirmed = await showConfirm(`Delete ${type.replace('_', ' ')}?`);
+            if (!confirmed) return;
 
             const res = await fetch(`/admin/delete-asset/${type}`, { method: 'DELETE' });
             if (res.ok) {
@@ -446,8 +517,8 @@
             const res = await fetch('/api/scan', { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                alert(`Scanned ${data.count} songs`);
-                location.reload();
+                showModal(`Scanned ${data.count} songs`);
+                setTimeout(() => location.reload(), 1000);
             }
         });
 
@@ -464,7 +535,6 @@
 
             uploadBtn.disabled = true;
             let uploaded = 0;
-            let errors = [];
 
             for (const file of files) {
                 uploadStatus.textContent = `Uploading ${file.name}...`;
@@ -477,26 +547,13 @@
                         method: 'POST',
                         body: formData
                     });
-                    const data = await res.json();
-
-                    if (res.ok) {
-                        uploaded++;
-                    } else {
-                        errors.push(`${file.name}: ${data.error}`);
-                    }
-                } catch (err) {
-                    errors.push(`${file.name}: Upload failed`);
-                }
+                    if (res.ok) uploaded++;
+                } catch (err) { }
             }
 
             uploadBtn.disabled = false;
             songUpload.value = '';
-
-            if (errors.length) {
-                uploadStatus.textContent = errors.join(', ');
-            } else {
-                uploadStatus.textContent = `Uploaded ${uploaded} file(s)`;
-            }
+            uploadStatus.textContent = `Uploaded ${uploaded} file(s)`;
 
             if (uploaded > 0) {
                 setTimeout(() => location.reload(), 1000);
@@ -521,11 +578,11 @@
             const selected = [...document.querySelectorAll('.song-checkbox:checked')];
             if (!selected.length) return;
 
-            if (!confirm(`Delete ${selected.length} song(s) and their votes?`)) return;
+            const confirmed = await showConfirm(`Delete ${selected.length} song(s)?`);
+            if (!confirmed) return;
 
             for (const cb of selected) {
-                const id = cb.dataset.id;
-                await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
+                await fetch(`/admin/songs/${cb.dataset.id}`, { method: 'DELETE' });
             }
             location.reload();
         });
@@ -533,7 +590,8 @@
         // Delete Song (individual)
         document.querySelectorAll('.delete-song').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!confirm('Delete this song and its votes?')) return;
+                const confirmed = await showConfirm('Delete this song?');
+                if (!confirmed) return;
 
                 const id = e.target.dataset.id;
                 const res = await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
@@ -550,7 +608,7 @@
             const password = document.getElementById('newAdminPassword').value;
 
             if (!username || !password) {
-                alert('Username and password required');
+                showModal('Username and password required');
                 return;
             }
 
@@ -564,14 +622,15 @@
                 location.reload();
             } else {
                 const data = await res.json();
-                alert(data.error);
+                showModal(data.error);
             }
         });
 
         // Delete Admin
         document.querySelectorAll('.delete-admin').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!confirm('Delete this admin?')) return;
+                const confirmed = await showConfirm('Delete this admin?');
+                if (!confirmed) return;
 
                 const id = e.target.dataset.id;
                 const res = await fetch(`/admin/admins/${id}`, { method: 'DELETE' });
@@ -580,7 +639,7 @@
                     e.target.closest('.admin-item').remove();
                 } else {
                     const data = await res.json();
-                    alert(data.error);
+                    showModal(data.error);
                 }
             });
         });

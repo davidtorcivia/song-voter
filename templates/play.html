@@ -293,58 +293,28 @@
                     this.canvas.height = height * window.devicePixelRatio;
                     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-                    // Dark fade background for glow effect
-                    ctx.fillStyle = 'rgba(10, 10, 15, 0.3)';
+                    // Clear with dark background
+                    ctx.fillStyle = 'rgba(15, 15, 20, 0.4)';
                     ctx.fillRect(0, 0, width, height);
 
-                    const barCount = 64;
-                    const barWidth = (width / barCount) * 0.85;
-                    const gap = (width / barCount) * 0.15;
+                    const barCount = 48;
+                    const barWidth = (width / barCount) * 0.8;
+                    const gap = (width / barCount) * 0.2;
 
                     for (let i = 0; i < barCount; i++) {
                         const idx = Math.floor(i * bufferLength / barCount);
                         const value = dataArray[idx] / 255;
-                        const barHeight = value * height * 0.9;
+                        const barHeight = value * height * 0.85;
                         const x = i * (barWidth + gap);
 
-                        // Warm esoteric gradient: deep magenta -> amber -> gold
-                        // Low = deep purple, Mid = magenta/rose, High = warm gold/amber
-                        let hue, sat, light;
-                        if (value < 0.3) {
-                            hue = 280 + value * 50;  // Deep purple to magenta
-                            sat = 60;
-                            light = 25 + value * 30;
-                        } else if (value < 0.6) {
-                            hue = 320 + (value - 0.3) * 80;  // Magenta to warm rose
-                            sat = 70;
-                            light = 40 + value * 20;
-                        } else {
-                            hue = 35 + (value - 0.6) * 20;  // Amber to gold
-                            sat = 80;
-                            light = 50 + value * 15;
-                        }
+                        // Subtle esoteric colors: muted blues and soft purples
+                        const hue = 220 + (i / barCount) * 40; // 220-260 range (blue to purple)
+                        const sat = 35 + value * 25; // Low saturation, increases with intensity
+                        const light = 30 + value * 35; // Soft, not too bright
+                        const alpha = 0.5 + value * 0.4;
 
-                        // Create gradient for each bar
-                        const gradient = ctx.createLinearGradient(x, height, x, height - barHeight);
-                        gradient.addColorStop(0, `hsla(${hue - 20}, ${sat}%, ${light - 10}%, 0.9)`);
-                        gradient.addColorStop(0.5, `hsla(${hue}, ${sat}%, ${light}%, 0.95)`);
-                        gradient.addColorStop(1, `hsla(${hue + 15}, ${sat - 10}%, ${light + 15}%, 1)`);
-
-                        ctx.fillStyle = gradient;
-
-                        // Rounded bars
-                        const radius = barWidth / 2;
-                        ctx.beginPath();
-                        ctx.roundRect(x, height - barHeight, barWidth, barHeight, [radius, radius, 0, 0]);
-                        ctx.fill();
-
-                        // Subtle glow on top
-                        if (value > 0.4) {
-                            ctx.shadowColor = `hsla(${hue}, ${sat}%, ${light + 20}%, 0.5)`;
-                            ctx.shadowBlur = 8;
-                            ctx.fillRect(x, height - barHeight, barWidth, 2);
-                            ctx.shadowBlur = 0;
-                        }
+                        ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
+                        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
                     }
                 };
                 draw();

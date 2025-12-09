@@ -7,14 +7,16 @@ import database as db
 
 app = Flask(__name__)
 
-# Secret key - generate a stable one if not in env (stored in data dir)
-SECRET_KEY_FILE = os.path.join(os.environ.get('DATABASE_PATH', 'data'), '.secret_key')
+# Data directory for persistent files
+DATA_DIR = os.environ.get('DATA_DIR', 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Secret key - generate a stable one if not in env
+SECRET_KEY_FILE = os.path.join(DATA_DIR, '.secret_key')
 if os.environ.get('SECRET_KEY'):
     app.secret_key = os.environ.get('SECRET_KEY')
 else:
-    # Try to load existing key, or generate a new one
     try:
-        os.makedirs(os.path.dirname(SECRET_KEY_FILE), exist_ok=True)
         if os.path.exists(SECRET_KEY_FILE):
             with open(SECRET_KEY_FILE, 'r') as f:
                 app.secret_key = f.read().strip()
