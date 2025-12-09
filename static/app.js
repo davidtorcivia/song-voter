@@ -21,7 +21,7 @@ class SongVoter {
         // Listening time tracking for 20-second requirement
         this.listenedTime = 0;
         this.minListenTime = 20; // seconds
-        this.lastTimeUpdate = 0;
+        this.listenInterval = null; // Wall-clock timer
 
         this.initElements();
         this.initEventListeners();
@@ -122,14 +122,20 @@ class SongVoter {
         this.audio.addEventListener('play', () => {
             this.isPlaying = true;
             this.playBtn.textContent = '❙❙';
-            // Resume audio context and start visualizer when audio plays
-            if (this.audioContext && this.audioContext.state === 'suspended') {
+            // Setup audio analyser on first play (requires user interaction)
+            if (!this.audioContext) {
+                this.setupAudioAnalyser();
+            } else if (this.audioContext.state === 'suspended') {
                 this.audioContext.resume();
             }
+            // Start wall-clock timer for listening time
+            this.startListenTimer();
         });
         this.audio.addEventListener('pause', () => {
             this.isPlaying = false;
             this.playBtn.textContent = '▶';
+            // Stop wall-clock timer
+            this.stopListenTimer();
         });
     }
 
@@ -395,6 +401,7 @@ class SongVoter {
         this.ratingValue.textContent = '5';
 
         // Reset listening time tracking
+        this.stopListenTimer();
         this.listenedTime = 0;
         this.lastTimeUpdate = 0;
         this.updateSubmitButtonState();
@@ -437,19 +444,25 @@ class SongVoter {
 
         // Update playhead icon position
         if (this.playhead) {
-            this.playhead.style.left = `calc(${percent}% - 7px)`;
+            this.playhead.style.left = `calc(${percent}% - 5px)`;
         }
 
-        // Track listening time (only when playing)
-        if (this.isPlaying && !isNaN(this.audio.currentTime)) {
-            const now = this.audio.currentTime;
-            if (this.lastTimeUpdate > 0 && now > this.lastTimeUpdate) {
-                this.listenedTime += now - this.lastTimeUpdate;
-            }
-            this.lastTimeUpdate = now;
+        // Update submit button state (timer is handled separately)
+        this.updateSubmitButtonState();
+    }
 
-            // Update submit button state based on listening time
+    startListenTimer() {
+        if (this.listenInterval) return; // Already running
+        this.listenInterval = setInterval(() => {
+            this.listenedTime += 0.1;
             this.updateSubmitButtonState();
+        }, 100);
+    }
+
+    stopListenTimer() {
+        if (this.listenInterval) {
+            clearInterval(this.listenInterval);
+            this.listenInterval = null;
         }
     }
 

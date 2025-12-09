@@ -259,30 +259,19 @@ label {
 .playhead {
     position: absolute;
     top: 50%;
-    left: -7px;
+    left: -5px;
     transform: translateY(-50%);
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     background: var(--text-primary);
     border-radius: 50%;
     transition: left 0.1s linear;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.4), 0 0 12px rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.playhead::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    background: var(--bg-primary);
-    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
 }
 
 .playhead:hover {
-    transform: translateY(-50%) scale(1.2);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.15);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
 .time-display {
