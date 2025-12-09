@@ -8,9 +8,12 @@ services:
     volumes:
       # Persist the SQLite database
       - ./data:/app/data
+      # Persist normalized audio cache
+      - ./normalized:/app/normalized
       # Mount your songs folder - UPDATE THIS PATH
       - /path/to/your/songs:/app/songs:ro
     environment:
       - SONGS_DIR=/app/songs
       - DATABASE_PATH=/app/data/song_voter.db
+      - NORMALIZED_DIR=/app/normalized
     restart: unless-stopped
