@@ -108,7 +108,7 @@
                     '<span class="no-votes">—</span>';
 
                 tr.innerHTML = `
-                    <td>${escapeHtml(result.filename)}</td>
+                    <td><a href="/play/${result.id}" class="song-link">${escapeHtml(result.filename)}</a></td>
                     <td>${result.vote_count}</td>
                     <td>${rating}</td>
                     <td>${thumbs}</td>

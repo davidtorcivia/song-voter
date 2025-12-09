@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Song Voter</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container admin-container">
+        <div class="admin-header">
+            <h1>Admin</h1>
+            <a href="/admin/logout" class="btn btn-secondary">Logout</a>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="card admin-section">
+            <h2>Settings</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Results Public</span>
+                    <span class="setting-desc">Allow visitors to see voting results</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="resultsPublic" {% if settings.results_public=='true' %}checked{% endif
+                        %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Voting Restriction</span>
+                    <span class="setting-desc">Limit votes per visitor</span>
+                </div>
+                <select id="votingRestriction" class="setting-select">
+                    <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None</option>
+                    <option value="ip" {% if settings.voting_restriction=='ip' %}selected{% endif %}>By IP</option>
+                    <option value="cookie" {% if settings.voting_restriction=='cookie' %}selected{% endif %}>By Cookie
+                    </option>
+                </select>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Site Password</span>
+                    <span class="setting-desc">Require password to access site (leave empty to disable)</span>
+                </div>
+                <input type="text" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
+                    placeholder="No password">
+            </div>
+
+            <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+        </div>
+
+        <!-- Songs Section -->
+        <div class="card admin-section">
+            <h2>Songs ({{ songs|length }})</h2>
+
+            <div class="songs-actions">
+                <button id="scanSongs" class="btn btn-secondary">Scan Folder</button>
+            </div>
+
+            <div class="songs-list" id="songsList">
+                {% for song in songs %}
+                <div class="song-item" data-id="{{ song.id }}">
+                    <div class="song-info">
+                        <span class="song-name">{{ song.filename }}</span>
+                        <span class="song-base">{{ song.base_name }}</span>
+                    </div>
+                    <div class="song-actions">
+                        <a href="/play/{{ song.id }}" class="btn-icon" title="Play">▶</a>
+                        <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
+                            title="Delete">✕</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Admin Users Section -->
+        <div class="card admin-section">
+            <h2>Admin Users</h2>
+
+            <div class="admins-list" id="adminsList">
+                {% for admin in admins %}
+                <div class="admin-item" data-id="{{ admin.id }}">
+                    <span class="admin-name">{{ admin.username }}</span>
+                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}" title="Delete">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="add-admin-form">
+                <input type="text" id="newAdminUsername" placeholder="Username">
+                <input type="password" id="newAdminPassword" placeholder="Password">
+                <button id="addAdmin" class="btn btn-secondary">Add Admin</button>
+            </div>
+        </div>
+
+        <div class="nav-footer">
+            <a href="/" class="nav-link">← Back to Site</a>
+            <a href="/results" class="nav-link">Results</a>
+        </div>
+    </div>
+
+    <script>
+        // Save Settings
+        document.getElementById('saveSettings').addEventListener('click', async () => {
+            const settings = {
+                results_public: document.getElementById('resultsPublic').checked ? 'true' : 'false',
+                voting_restriction: document.getElementById('votingRestriction').value,
+                site_password: document.getElementById('sitePassword').value
+            };
+
+            const res = await fetch('/admin/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            });
+
+            if (res.ok) {
+                alert('Settings saved!');
+            }
+        });
+
+        // Scan Songs
+        document.getElementById('scanSongs').addEventListener('click', async () => {
+            const res = await fetch('/api/scan', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Scanned ${data.count} songs`);
+                location.reload();
+            }
+        });
+
+        // Delete Song
+        document.querySelectorAll('.delete-song').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                if (!confirm('Delete this song and its votes?')) return;
+
+                const id = e.target.dataset.id;
+                const res = await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
+
+                if (res.ok) {
+                    e.target.closest('.song-item').remove();
+                }
+            });
+        });
+
+        // Add Admin
+        document.getElementById('addAdmin').addEventListener('click', async () => {
+            const username = document.getElementById('newAdminUsername').value;
+            const password = document.getElementById('newAdminPassword').value;
+
+            if (!username || !password) {
+                alert('Username and password required');
+                return;
+            }
+
+            const res = await fetch('/admin/admins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (res.ok) {
+                location.reload();
+            } else {
+                const data = await res.json();
+                alert(data.error);
+            }
+        });
+
+        // Delete Admin
+        document.querySelectorAll('.delete-admin').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                if (!confirm('Delete this admin?')) return;
+
+                const id = e.target.dataset.id;
+                const res = await fetch(`/admin/admins/${id}`, { method: 'DELETE' });
+
+                if (res.ok) {
+                    e.target.closest('.admin-item').remove();
+                } else {
+                    const data = await res.json();
+                    alert(data.error);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

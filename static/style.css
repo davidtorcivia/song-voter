@@ -958,3 +958,269 @@ label {
     border-color: var(--success);
     color: var(--bg-primary);
 }
+
+/* ============ Admin Panel ============ */
+
+.admin-container {
+    max-width: 600px;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.admin-header h1 {
+    margin: 0;
+}
+
+.admin-section {
+    margin-bottom: 24px;
+}
+
+.admin-section h2 {
+    font-size: 1rem;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+/* Forms */
+.admin-form .form-group {
+    margin-bottom: 16px;
+}
+
+.admin-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.admin-form input[type="text"],
+.admin-form input[type="password"] {
+    width: 100%;
+}
+
+/* Alerts */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 0.875rem;
+}
+
+.alert-error {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+}
+
+.alert-success {
+    background: var(--positive-muted);
+    color: var(--positive);
+    border: 1px solid var(--positive);
+}
+
+/* Settings */
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-of-type {
+    border-bottom: none;
+    margin-bottom: 16px;
+}
+
+.setting-info {
+    flex: 1;
+}
+
+.setting-label {
+    display: block;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.setting-desc {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.setting-select,
+.setting-input {
+    width: 120px;
+    font-size: 0.8rem;
+    padding: 8px;
+}
+
+/* Toggle Switch */
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-secondary);
+    border-radius: 24px;
+    transition: var(--transition);
+    border: 1px solid var(--border);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.toggle input:checked+.toggle-slider {
+    background: var(--positive);
+    border-color: var(--positive);
+}
+
+.toggle input:checked+.toggle-slider:before {
+    transform: translateX(20px);
+    background: white;
+}
+
+/* Songs List */
+.songs-actions {
+    margin-bottom: 16px;
+}
+
+.songs-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.song-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.song-item:last-child {
+    border-bottom: none;
+}
+
+.song-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.song-name {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-base {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.song-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: var(--transition);
+    text-decoration: none;
+}
+
+.btn-icon:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.btn-icon.btn-danger:hover {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* Admin Users */
+.admins-list {
+    margin-bottom: 16px;
+}
+
+.admin-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.admin-item:last-child {
+    border-bottom: none;
+}
+
+.admin-name {
+    color: var(--text-primary);
+}
+
+.add-admin-form {
+    display: flex;
+    gap: 8px;
+}
+
+.add-admin-form input {
+    flex: 1;
+    font-size: 0.8rem;
+}
+
+/* Results clickable rows */
+.results-table .song-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.results-table .song-link:hover {
+    color: var(--accent-warm);
+}
