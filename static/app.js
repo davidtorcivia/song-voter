@@ -248,7 +248,7 @@ class SongVoter {
         const width = this.visualizer.width / window.devicePixelRatio;
         const height = this.visualizer.height / window.devicePixelRatio;
 
-        this.visCtx.fillStyle = '#111111';
+        this.visCtx.fillStyle = 'rgba(15, 15, 20, 0.4)';
         this.visCtx.fillRect(0, 0, width, height);
 
         // Draw subtle idle bars
@@ -257,7 +257,10 @@ class SongVoter {
 
         for (let i = 0; i < barCount; i++) {
             const barHeight = 2 + Math.random() * 4;
-            this.visCtx.fillStyle = 'rgb(50, 50, 50)';
+            // Esoteric idle colors
+            const hue = 220 + (i / barCount) * 40;
+            const light = 20; // Dimmer for idle
+            this.visCtx.fillStyle = `hsla(${hue}, 40%, ${light}%, 0.5)`;
             this.visCtx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
         }
     }
@@ -302,7 +305,7 @@ class SongVoter {
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
-            this.visCtx.fillStyle = '#111111';
+            this.visCtx.fillStyle = 'rgba(15, 15, 20, 0.4)'; // Darker, transparent bg like play.html
             this.visCtx.fillRect(0, 0, width, height);
 
             const barWidth = width / bufferLength;
@@ -311,9 +314,15 @@ class SongVoter {
             for (let i = 0; i < bufferLength; i++) {
                 const barHeight = (dataArray[i] / 255) * height;
 
-                // Gradient from dim to bright based on amplitude
-                const brightness = Math.floor(40 + (dataArray[i] / 255) * 80);
-                this.visCtx.fillStyle = `rgb(${brightness}, ${brightness}, ${brightness})`;
+                // Subtle esoteric colors: muted blues and soft purples
+                // Matching play.html implementation
+                const value = dataArray[i] / 255;
+                const hue = 220 + (i / bufferLength) * 40; // 220-260 range
+                const sat = 35 + value * 25;
+                const light = 30 + value * 35;
+                const alpha = 0.5 + value * 0.4;
+
+                this.visCtx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
 
                 this.visCtx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
                 x += barWidth;

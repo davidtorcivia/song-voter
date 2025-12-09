@@ -154,10 +154,11 @@
                 <div class="controls-row">
                     <button id="playBtn" class="control-btn">&#9654;</button>
                     <div class="volume-control">
-                        <span class="volume-icon">Vol</span>
+                        <span class="volume-icon">&#9673;</span>
                         <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
                             value="1">
                     </div>
+                    <button id="castBtn" class="control-btn" style="display: none;" title="Cast">&#8984;</button>
                 </div>
             </div>
 
@@ -181,6 +182,7 @@
                 this.currentTimeEl = document.getElementById('currentTime');
                 this.totalTimeEl = document.getElementById('totalTime');
                 this.volumeSlider = document.getElementById('volumeSlider');
+                this.castBtn = document.getElementById('castBtn');
                 this.canvas = document.getElementById('visualizer');
 
                 this.isPlaying = false;
@@ -199,6 +201,10 @@
                 this.volumeSlider.addEventListener('input', () => {
                     this.audio.volume = this.volumeSlider.value;
                 });
+
+                if (this.castBtn) {
+                    this.castBtn.addEventListener('click', () => this.promptCast());
+                }
 
                 // Seek drag
                 let isDragging = false;
@@ -233,6 +239,32 @@
                         this.togglePlay();
                     }
                 });
+
+                this.initCasting();
+            }
+
+            initCasting() {
+                if (!this.castBtn) return;
+
+                // Check if Remote Playback API is available
+                if ('remote' in this.audio) {
+                    this.audio.remote.watchAvailability((available) => {
+                        this.castBtn.style.display = available ? 'flex' : 'none';
+                    }).catch(() => {
+                        // Fallback: always show cast button
+                        this.castBtn.style.display = 'flex';
+                    });
+                } else {
+                    this.castBtn.style.display = 'none';
+                }
+            }
+
+            promptCast() {
+                if ('remote' in this.audio) {
+                    this.audio.remote.prompt().catch(err => {
+                        console.log('Cast prompt error:', err);
+                    });
+                }
             }
 
             togglePlay() {
