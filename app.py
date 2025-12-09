@@ -8,6 +8,14 @@ app = Flask(__name__)
 # Configure songs directory from environment or default
 SONGS_DIR = os.environ.get('SONGS_DIR', 'songs')
 
+# Add CORS headers for audio (needed for Web Audio API visualizer)
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Range'
+    return response
+
 
 @app.route('/')
 def index():
