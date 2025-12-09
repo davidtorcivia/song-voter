@@ -81,6 +81,20 @@ def add_cors_headers(response):
     return response
 
 
+# Inject branding into all templates
+@app.context_processor
+def inject_branding():
+    return {
+        'branding': {
+            'title': db.get_setting('site_title', 'Song Voter'),
+            'description': db.get_setting('site_description', 'Vote on your favorite song versions'),
+            'url': db.get_setting('site_url', ''),
+            'og_image': db.get_setting('og_image', ''),
+            'favicon': db.get_setting('favicon', '/static/favicon.ico'),
+        }
+    }
+
+
 # ============ Site Password Gate ============
 
 @app.route('/gate', methods=['GET', 'POST'])

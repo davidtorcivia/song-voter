@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ song.base_name }} - Song Voter</title>
+    <title>{{ song.base_name }} - {{ branding.title }}</title>
+    <meta name="description" content="{{ branding.description }}">
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         /* Play page specific styles to ensure proper rendering */
@@ -152,7 +154,7 @@
                 <div class="controls-row">
                     <button id="playBtn" class="control-btn">&#9654;</button>
                     <div class="volume-control">
-                        <span class="volume-icon">&#x1F50A;</span>
+                        <span class="volume-icon">Vol</span>
                         <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
                             value="1">
                     </div>
