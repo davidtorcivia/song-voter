@@ -315,8 +315,6 @@ class SongVoter {
         const draw = () => {
             requestAnimationFrame(draw);
 
-            this.analyser.getByteFrequencyData(dataArray);
-
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
@@ -349,7 +347,9 @@ class SongVoter {
                 this.visCtx.lineTo(width, height / 2);
                 this.visCtx.stroke();
             } else {
-                // Bars mode (default)
+                // Bars mode (default) - need frequency data
+                this.analyser.getByteFrequencyData(dataArray);
+
                 const barCount = 48;
                 const barWidth = (width / barCount) * 0.8;
                 const gap = (width / barCount) * 0.2;
@@ -506,17 +506,29 @@ class SongVoter {
     }
 
     playNext() {
-        this.currentIndex++;
-
-        if (this.currentIndex >= this.queue.length) {
-            this.showFeedback('All songs rated!');
-            this.setupSection.style.display = 'block';
-            this.playerSection.style.display = 'none';
-            if (this.pageTitle) this.pageTitle.textContent = 'Song Voter';
-            return;
+        // Animate out the current song
+        if (this.songName) {
+            this.songName.style.animation = 'slideOut 0.2s ease-in forwards';
         }
 
-        this.loadSong(this.queue[this.currentIndex]);
+        setTimeout(() => {
+            this.currentIndex++;
+
+            if (this.currentIndex >= this.queue.length) {
+                this.showFeedback('All songs rated!');
+                this.setupSection.style.display = 'block';
+                this.playerSection.style.display = 'none';
+                if (this.pageTitle) this.pageTitle.textContent = 'Song Voter';
+                return;
+            }
+
+            this.loadSong(this.queue[this.currentIndex]);
+
+            // Animate in the new song
+            if (this.songName) {
+                this.songName.style.animation = 'slideIn 0.3s ease-out forwards';
+            }
+        }, 200);
     }
 
     loadSong(song) {
@@ -658,7 +670,7 @@ class SongVoter {
             if (isPlayed) {
                 // Played: Gradient with subtle glow
                 this.waveCtx.shadowColor = accentColor;
-                this.waveCtx.shadowBlur = 4;
+                this.waveCtx.shadowBlur = 2;  // Subtle glow
                 this.waveCtx.fillStyle = playedGradient;
             } else if (isHovered) {
                 // Hovered: Slightly transparent white (preview seek)
@@ -675,7 +687,7 @@ class SongVoter {
 
         // Draw playhead line
         if (progress > 0 && progress < 1) {
-            this.waveCtx.shadowBlur = 8;
+            this.waveCtx.shadowBlur = 4;  // Subtle glow
             this.waveCtx.shadowColor = accentColor;
             this.waveCtx.strokeStyle = '#ffffff';
             this.waveCtx.lineWidth = 2;
@@ -802,7 +814,7 @@ class SongVoter {
                 this.showFeedback(data.error || 'Vote failed', true);
             }
         } catch (err) {
-            this.showFeedback('Error', true);
+            this.showFeedback('Network error', true);
             console.error(err);
         }
 
