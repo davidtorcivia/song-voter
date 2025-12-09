@@ -64,6 +64,14 @@
                 <button id="scanSongs" class="btn btn-secondary">Scan Folder</button>
             </div>
 
+            <div class="upload-area">
+                <input type="file" id="songUpload" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
+                <button id="uploadBtn" class="btn btn-primary" style="width: 100%;">
+                    Upload Songs
+                </button>
+                <div id="uploadStatus" class="upload-status"></div>
+            </div>
+
             <div class="songs-list" id="songsList">
                 {% for song in songs %}
                 <div class="song-item" data-id="{{ song.id }}">
@@ -134,6 +142,58 @@
             if (data.success) {
                 alert(`Scanned ${data.count} songs`);
                 location.reload();
+            }
+        });
+
+        // Upload Songs
+        const uploadBtn = document.getElementById('uploadBtn');
+        const songUpload = document.getElementById('songUpload');
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        uploadBtn.addEventListener('click', () => songUpload.click());
+
+        songUpload.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (!files.length) return;
+
+            uploadBtn.disabled = true;
+            let uploaded = 0;
+            let errors = [];
+
+            for (const file of files) {
+                uploadStatus.textContent = `Uploading ${file.name}...`;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const res = await fetch('/admin/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (res.ok) {
+                        uploaded++;
+                    } else {
+                        errors.push(`${file.name}: ${data.error}`);
+                    }
+                } catch (err) {
+                    errors.push(`${file.name}: Upload failed`);
+                }
+            }
+
+            uploadBtn.disabled = false;
+            songUpload.value = '';
+
+            if (errors.length) {
+                uploadStatus.textContent = errors.join(', ');
+            } else {
+                uploadStatus.textContent = `Uploaded ${uploaded} file(s)`;
+            }
+
+            if (uploaded > 0) {
+                setTimeout(() => location.reload(), 1000);
             }
         });
 

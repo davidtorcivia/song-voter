@@ -360,6 +360,51 @@ def admin_update_settings():
     return jsonify({'success': True})
 
 
+@app.route('/admin/upload', methods=['POST'])
+@admin_required
+def admin_upload_song():
+    """Upload a new song file."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check extension
+    filename = file.filename
+    if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
+        return jsonify({'error': f'Unsupported format. Use: {", ".join(SUPPORTED_EXTENSIONS)}'}), 400
+    
+    # Ensure songs directory exists
+    os.makedirs(SONGS_DIR, exist_ok=True)
+    
+    # Save file
+    full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
+    
+    # Check if already exists
+    if os.path.exists(full_path):
+        return jsonify({'error': 'File already exists'}), 400
+    
+    file.save(full_path)
+    
+    # Add to database
+    song_id = db.add_song(filename, full_path)
+    
+    # Trigger normalization in background (optional - could be slow)
+    try:
+        import audio_normalize
+        audio_normalize.get_or_normalize(full_path)
+    except Exception as e:
+        print(f"Normalization error: {e}")
+    
+    return jsonify({
+        'success': True,
+        'song_id': song_id,
+        'filename': filename
+    })
+
+
 @app.route('/admin/songs/<int:song_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_song(song_id):
