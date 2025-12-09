@@ -42,6 +42,9 @@
             <div class="card">
                 <div class="song-name" id="songName">—</div>
 
+                <!-- Simple Visualizer -->
+                <canvas id="visualizer" class="visualizer"></canvas>
+
                 <div class="audio-controls">
                     <!-- Progress Bar -->
                     <div class="progress-container" id="progressBar">
@@ -63,23 +66,7 @@
 
                         <button id="playBtn" class="btn btn-icon btn-primary">▶</button>
                         <button id="skipBtn" class="btn btn-icon btn-secondary">⏭</button>
-                        <button id="castBtn" class="btn btn-icon btn-secondary cast-btn" title="Cast">⌘</button>
-                    </div>
-
-                    <!-- HEOS Controls -->
-                    <div class="cast-controls">
-                        <div class="cast-row">
-                            <select id="heosSelect" class="cast-select">
-                                <option value="">HEOS: Scan...</option>
-                            </select>
-                            <button id="heosPlayBtn" class="btn btn-secondary cast-play-btn" disabled>▸</button>
-                        </div>
-                        <div class="cast-row">
-                            <select id="airplaySelect" class="cast-select">
-                                <option value="">AirPlay: Scan...</option>
-                            </select>
-                            <button id="airplayPlayBtn" class="btn btn-secondary cast-play-btn" disabled>▸</button>
-                        </div>
+                        <button id="castBtn" class="btn btn-icon btn-secondary" title="Cast">⌘</button>
                     </div>
                 </div>
             </div>
@@ -116,8 +103,8 @@
         <div id="feedback" class="feedback"></div>
     </div>
 
-    <!-- Audio element with Airplay support -->
-    <audio id="audioPlayer" x-webkit-airplay="allow" style="display: none;"></audio>
+    <!-- Audio element -->
+    <audio id="audioPlayer" crossorigin="anonymous" style="display: none;"></audio>
 
     <script src="/static/app.js"></script>
 </body>
