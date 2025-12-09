@@ -300,35 +300,39 @@ label {
     }
 }
 
-/* HEOS Controls */
-.heos-controls {
+/* Cast Controls (HEOS + AirPlay) */
+.cast-controls {
     margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.heos-row {
+.cast-row {
     display: flex;
     gap: 8px;
     align-items: center;
 }
 
-.heos-select {
+.cast-select {
     flex: 1;
-    font-size: 0.8rem;
-    padding: 10px 12px;
+    font-size: 0.75rem;
+    padding: 8px 10px;
 }
 
-.heos-play-btn {
-    padding: 10px 16px;
+.cast-play-btn {
+    padding: 8px 14px;
     font-size: 1rem;
 }
 
-.heos-play-btn.playing {
+.cast-play-btn.playing {
     background: var(--success);
     border-color: var(--success);
     color: var(--bg-primary);
 }
+
 
 .volume-control {
     display: flex;

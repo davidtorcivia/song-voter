@@ -215,6 +215,72 @@ def heos_stop():
     return jsonify({'success': success})
 
 
+# ============ AirPlay Endpoints ============
+
+@app.route('/api/airplay/discover', methods=['POST'])
+def airplay_discover():
+    """Discover AirPlay devices on the network."""
+    import airplay
+    if not airplay.is_available():
+        return jsonify({'error': 'pyatv not installed', 'devices': []}), 200
+    
+    devices = airplay.discover_airplay_devices(timeout=5)
+    return jsonify({'devices': devices})
+
+
+@app.route('/api/airplay/devices', methods=['GET'])
+def airplay_devices():
+    """Get cached AirPlay devices."""
+    import airplay
+    if not airplay.is_available():
+        return jsonify({'devices': []})
+    
+    devices = airplay.get_cached_devices()
+    return jsonify({'devices': devices})
+
+
+@app.route('/api/airplay/play', methods=['POST'])
+def airplay_play():
+    """Stream a song to an AirPlay device."""
+    import airplay
+    if not airplay.is_available():
+        return jsonify({'error': 'pyatv not installed'}), 500
+    
+    data = request.get_json()
+    address = data.get('address')
+    song_id = data.get('song_id')
+    
+    if not all([address, song_id]):
+        return jsonify({'error': 'Missing address or song_id'}), 400
+    
+    # Build the full audio URL
+    audio_url = f"{request.url_root}api/songs/{song_id}/audio"
+    
+    success = airplay.stream_url(address, audio_url)
+    
+    if success:
+        return jsonify({'success': True, 'url': audio_url})
+    else:
+        return jsonify({'error': 'Failed to stream to AirPlay device'}), 500
+
+
+@app.route('/api/airplay/stop', methods=['POST'])
+def airplay_stop():
+    """Stop playback on an AirPlay device."""
+    import airplay
+    if not airplay.is_available():
+        return jsonify({'error': 'pyatv not installed'}), 500
+    
+    data = request.get_json()
+    address = data.get('address')
+    
+    if not address:
+        return jsonify({'error': 'Missing address'}), 400
+    
+    success = airplay.stop_playback(address)
+    return jsonify({'success': success})
+
+
 if __name__ == '__main__':
     db.init_db()
     app.run(host='0.0.0.0', port=5000, debug=False)

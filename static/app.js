@@ -21,11 +21,17 @@ class SongVoter {
         this.heosPlaying = false;
         this.selectedHeos = null;
 
+        // AirPlay state
+        this.airplayDevices = [];
+        this.airplayPlaying = false;
+        this.selectedAirplay = null;
+
         this.initElements();
         this.initEventListeners();
         this.initAudioListeners();
         this.initCasting();
         this.initHeos();
+        this.initAirplay();
 
         // Auto-load songs on startup
         this.autoLoadSongs();
@@ -64,6 +70,10 @@ class SongVoter {
         // HEOS
         this.heosSelect = document.getElementById('heosSelect');
         this.heosPlayBtn = document.getElementById('heosPlayBtn');
+
+        // AirPlay
+        this.airplaySelect = document.getElementById('airplaySelect');
+        this.airplayPlayBtn = document.getElementById('airplayPlayBtn');
     }
 
     initEventListeners() {
@@ -91,6 +101,15 @@ class SongVoter {
         }
         if (this.heosPlayBtn) {
             this.heosPlayBtn.addEventListener('click', () => this.toggleHeosPlay());
+        }
+
+        // AirPlay listeners
+        if (this.airplaySelect) {
+            this.airplaySelect.addEventListener('change', () => this.onAirplaySelect());
+            this.airplaySelect.addEventListener('focus', () => this.discoverAirplay());
+        }
+        if (this.airplayPlayBtn) {
+            this.airplayPlayBtn.addEventListener('click', () => this.toggleAirplayPlay());
         }
     }
 
@@ -589,6 +608,165 @@ class SongVoter {
         this.heosPlaying = false;
         this.heosPlayBtn.textContent = '▸';
         this.heosPlayBtn.classList.remove('playing');
+    }
+
+    // ============ AirPlay Methods ============
+
+    initAirplay() {
+        // Try to load cached devices on init
+        this.loadCachedAirplayDevices();
+    }
+
+    async loadCachedAirplayDevices() {
+        try {
+            const response = await fetch('/api/airplay/devices');
+            const data = await response.json();
+            if (data.devices && data.devices.length > 0) {
+                this.airplayDevices = data.devices;
+                this.populateAirplaySelect();
+            }
+        } catch (err) {
+            console.log('No cached AirPlay devices');
+        }
+    }
+
+    async discoverAirplay() {
+        if (!this.airplaySelect) return;
+
+        // Only discover if we don't have devices yet
+        if (this.airplayDevices.length > 0) return;
+
+        this.airplaySelect.innerHTML = '<option value="">Scanning...</option>';
+
+        try {
+            const response = await fetch('/api/airplay/discover', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.error) {
+                this.airplaySelect.innerHTML = '<option value="">pyatv not installed</option>';
+                return;
+            }
+
+            this.airplayDevices = data.devices || [];
+            this.populateAirplaySelect();
+
+            if (this.airplayDevices.length === 0) {
+                this.showFeedback('No AirPlay devices found', true);
+            } else {
+                this.showFeedback(`Found ${this.airplayDevices.length} AirPlay device(s)`);
+            }
+        } catch (err) {
+            console.error('AirPlay discovery error:', err);
+            this.airplaySelect.innerHTML = '<option value="">Discovery failed</option>';
+        }
+    }
+
+    populateAirplaySelect() {
+        if (!this.airplaySelect) return;
+
+        this.airplaySelect.innerHTML = '<option value="">Select AirPlay device...</option>';
+
+        for (const device of this.airplayDevices) {
+            const option = document.createElement('option');
+            option.value = JSON.stringify({ address: device.address });
+            option.textContent = device.name + (device.model ? ` (${device.model})` : '');
+            this.airplaySelect.appendChild(option);
+        }
+
+        // Add rescan option
+        const rescanOption = document.createElement('option');
+        rescanOption.value = 'rescan';
+        rescanOption.textContent = '↻ Rescan...';
+        this.airplaySelect.appendChild(rescanOption);
+    }
+
+    onAirplaySelect() {
+        if (!this.airplaySelect || !this.airplayPlayBtn) return;
+
+        const value = this.airplaySelect.value;
+
+        if (value === 'rescan') {
+            this.airplayDevices = [];
+            this.discoverAirplay();
+            return;
+        }
+
+        if (value) {
+            this.selectedAirplay = JSON.parse(value);
+            this.airplayPlayBtn.disabled = false;
+        } else {
+            this.selectedAirplay = null;
+            this.airplayPlayBtn.disabled = true;
+        }
+    }
+
+    async toggleAirplayPlay() {
+        if (!this.selectedAirplay || !this.currentSong) return;
+
+        if (this.airplayPlaying) {
+            await this.stopAirplayPlay();
+        } else {
+            await this.startAirplayPlay();
+        }
+    }
+
+    async startAirplayPlay() {
+        if (!this.selectedAirplay || !this.currentSong) return;
+
+        this.airplayPlayBtn.disabled = true;
+        this.airplayPlayBtn.textContent = '...';
+
+        try {
+            const response = await fetch('/api/airplay/play', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address: this.selectedAirplay.address,
+                    song_id: this.currentSong.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.airplayPlaying = true;
+                this.airplayPlayBtn.textContent = '■';
+                this.airplayPlayBtn.classList.add('playing');
+                this.showFeedback('Playing on AirPlay');
+
+                // Pause local playback
+                this.audio.pause();
+            } else {
+                this.showFeedback(data.error || 'AirPlay failed', true);
+                this.airplayPlayBtn.textContent = '▸';
+            }
+        } catch (err) {
+            console.error('AirPlay error:', err);
+            this.showFeedback('AirPlay error', true);
+            this.airplayPlayBtn.textContent = '▸';
+        }
+
+        this.airplayPlayBtn.disabled = false;
+    }
+
+    async stopAirplayPlay() {
+        if (!this.selectedAirplay) return;
+
+        try {
+            await fetch('/api/airplay/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address: this.selectedAirplay.address
+                })
+            });
+        } catch (err) {
+            console.error('AirPlay stop error:', err);
+        }
+
+        this.airplayPlaying = false;
+        this.airplayPlayBtn.textContent = '▸';
+        this.airplayPlayBtn.classList.remove('playing');
     }
 }
 
