@@ -87,6 +87,10 @@ def init_db():
         'site_url': '',
         'og_image': '',  # URL or uploaded path
         'favicon': '',   # URL or uploaded path
+        
+        # UI Customization
+        'accent_color': '#ffffff',  # Accent color for waveform, etc.
+        'visualizer_mode': 'bars',  # bars or wave
     }
     for key, value in default_settings.items():
         cursor.execute(

@@ -32,6 +32,9 @@
 
     /* Typography */
     --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+
+    /* Accent color (can be overridden inline) */
+    --accent-color: #ffffff;
 }
 
 * {
@@ -49,6 +52,71 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 0.875rem;
+    animation: bgShift 30s ease infinite;
+    background-size: 400% 400%;
+}
+
+/* Subtle background animation */
+@keyframes bgShift {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+body {
+    background: linear-gradient(135deg, #0a0a0a 0%, #0f0f12 50%, #0a0a0a 100%);
+}
+
+/* Loading shimmer animation */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.loading {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Song card transition */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+}
+
+.song-name {
+    animation: slideIn 0.3s ease-out;
 }
 
 .container {
@@ -99,7 +167,11 @@ h1 {
     border-color: var(--border-hover);
 }
 
-.btn-primary {
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn.primary {
     background: var(--text-primary);
     color: var(--bg-primary);
     border-color: var(--text-primary);
@@ -247,22 +319,6 @@ label {
     display: block;
     border-radius: 4px;
     /* Background removed for sleek look */
-}
-
-top: 50%;
-left: -5px;
-transform: translateY(-50%);
-width: 10px;
-height: 10px;
-background: var(--text-primary);
-border-radius: 50%;
-transition: left 0.1s linear;
-box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
-}
-
-.playhead:hover {
-    transform: translateY(-50%) scale(1.15);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
 .time-display {
@@ -426,10 +482,34 @@ box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
 
 .thumb-btn.up.selected {
     color: var(--positive);
+    animation: thumbBounce 0.4s ease;
 }
 
 .thumb-btn.down.selected {
     color: var(--danger);
+    animation: thumbBounce 0.4s ease;
+}
+
+@keyframes thumbBounce {
+    0% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(1.3);
+    }
+
+    50% {
+        transform: scale(0.9);
+    }
+
+    70% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .thumb-btn:disabled {

@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
-<body>
+<body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
     <div class="container">
         <h1 id="pageTitle">{{ branding.title or 'Song Voter' }}</h1>
 
@@ -134,6 +134,7 @@
     <script>
         window.INITIAL_SONGS = {{ songs | tojson | safe }};
         window.INITIAL_BASE_NAMES = {{ base_names | tojson | safe }};
+        window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
     </script>
     <script src="/static/app.js"></script>
 </body>

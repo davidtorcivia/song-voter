@@ -364,6 +364,12 @@
                 const gap = 0.5; // Small gap
 
                 const progress = this.audio.currentTime / this.audio.duration || 0;
+                const progressX = progress * width;
+
+                // Create vibrant gradient for play page (blue to purple)
+                const playedGradient = this.waveCtx.createLinearGradient(0, 0, progressX, 0);
+                playedGradient.addColorStop(0, '#60a5fa'); // Blue
+                playedGradient.addColorStop(1, '#a78bfa'); // Purple
 
                 for (let i = 0; i < data.length; i++) {
                     const val = data[i];
@@ -378,14 +384,32 @@
                     const isHovered = this.hoverX >= 0 && x <= this.hoverX;
 
                     if (isPlayed) {
-                        this.waveCtx.fillStyle = '#ffffff';
+                        // Played: Vibrant gradient with glow
+                        this.waveCtx.shadowColor = '#a78bfa';
+                        this.waveCtx.shadowBlur = 6;
+                        this.waveCtx.fillStyle = playedGradient;
                     } else if (isHovered) {
+                        this.waveCtx.shadowBlur = 0;
                         this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
                     } else {
+                        this.waveCtx.shadowBlur = 0;
                         this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                     }
 
                     this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+                }
+
+                // Draw playhead line with glow
+                if (progress > 0 && progress < 1) {
+                    this.waveCtx.shadowBlur = 10;
+                    this.waveCtx.shadowColor = '#a78bfa';
+                    this.waveCtx.strokeStyle = '#ffffff';
+                    this.waveCtx.lineWidth = 2;
+                    this.waveCtx.beginPath();
+                    this.waveCtx.moveTo(progressX, 0);
+                    this.waveCtx.lineTo(progressX, height);
+                    this.waveCtx.stroke();
+                    this.waveCtx.shadowBlur = 0;
                 }
             }
 

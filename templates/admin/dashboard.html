@@ -357,6 +357,24 @@
                         onclick="document.getElementById('ogImageFile').click()">Upload</button>
                 </div>
             </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Accent Color</span>
+                </div>
+                <input type="color" id="accentColor" value="{{ settings.accent_color or '#ffffff' }}"
+                    style="width: 48px; height: 32px; border: none; cursor: pointer;">
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Visualizer Mode</span>
+                </div>
+                <select id="visualizerMode" class="setting-select">
+                    <option value="bars" {% if settings.visualizer_mode=='bars' %}selected{% endif %}>Bars</option>
+                    <option value="wave" {% if settings.visualizer_mode=='wave' %}selected{% endif %}>Wave</option>
+                </select>
+            </div>
         </div>
 
         <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
@@ -473,6 +491,8 @@
                 site_title: document.getElementById('siteTitle').value,
                 site_description: document.getElementById('siteDescription').value,
                 site_url: document.getElementById('siteUrl').value,
+                accent_color: document.getElementById('accentColor').value,
+                visualizer_mode: document.getElementById('visualizerMode').value,
             };
 
             try {

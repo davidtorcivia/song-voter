@@ -310,6 +310,7 @@ class SongVoter {
 
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        const mode = window.VISUALIZER_MODE || 'bars';
 
         const draw = () => {
             requestAnimationFrame(draw);
@@ -322,22 +323,49 @@ class SongVoter {
             this.visCtx.fillStyle = '#111111';
             this.visCtx.fillRect(0, 0, width, height);
 
-            const barCount = 48;
-            const barWidth = (width / barCount) * 0.8;
-            const gap = (width / barCount) * 0.2;
+            if (mode === 'wave') {
+                // Wave/oscilloscope mode
+                this.analyser.getByteTimeDomainData(dataArray);
 
-            for (let i = 0; i < barCount; i++) {
-                const idx = Math.floor(i * bufferLength / barCount);
-                const value = dataArray[idx] / 255;
-                const barHeight = value * height * 0.85;
-                const x = i * (barWidth + gap);
+                this.visCtx.lineWidth = 2;
+                this.visCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                this.visCtx.beginPath();
 
-                // Monochrome visualizer (Vote Page)
-                // White/Grey scale based on intensity
-                const lightness = 30 + value * 60; // 30% to 90% lightness
-                this.visCtx.fillStyle = `hsl(0, 0%, ${lightness}%)`;
+                const sliceWidth = width / bufferLength;
+                let x = 0;
 
-                this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = (v * height) / 2;
+
+                    if (i === 0) {
+                        this.visCtx.moveTo(x, y);
+                    } else {
+                        this.visCtx.lineTo(x, y);
+                    }
+                    x += sliceWidth;
+                }
+
+                this.visCtx.lineTo(width, height / 2);
+                this.visCtx.stroke();
+            } else {
+                // Bars mode (default)
+                const barCount = 48;
+                const barWidth = (width / barCount) * 0.8;
+                const gap = (width / barCount) * 0.2;
+
+                for (let i = 0; i < barCount; i++) {
+                    const idx = Math.floor(i * bufferLength / barCount);
+                    const value = dataArray[idx] / 255;
+                    const barHeight = value * height * 0.85;
+                    const x = i * (barWidth + gap);
+
+                    // Monochrome visualizer (Vote Page)
+                    const lightness = 30 + value * 60;
+                    this.visCtx.fillStyle = `hsl(0, 0%, ${lightness}%)`;
+
+                    this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                }
             }
         };
 
@@ -605,6 +633,15 @@ class SongVoter {
         const gap = 0.5; // Small gap
 
         const progress = this.audio.currentTime / this.audio.duration || 0;
+        const progressX = progress * width;
+
+        // Get accent color from CSS variable or default to white
+        const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
+
+        // Create gradient for played portion (subtle for vote page)
+        const playedGradient = this.waveCtx.createLinearGradient(0, 0, progressX, 0);
+        playedGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        playedGradient.addColorStop(1, accentColor);
 
         for (let i = 0; i < data.length; i++) {
             const val = data[i];
@@ -619,17 +656,34 @@ class SongVoter {
             const isHovered = this.hoverX >= 0 && x <= this.hoverX;
 
             if (isPlayed) {
-                // Played: Solid White
-                this.waveCtx.fillStyle = '#ffffff';
+                // Played: Gradient with subtle glow
+                this.waveCtx.shadowColor = accentColor;
+                this.waveCtx.shadowBlur = 4;
+                this.waveCtx.fillStyle = playedGradient;
             } else if (isHovered) {
                 // Hovered: Slightly transparent white (preview seek)
+                this.waveCtx.shadowBlur = 0;
                 this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
             } else {
                 // Unplayed: Very subtle grey
+                this.waveCtx.shadowBlur = 0;
                 this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             }
 
             this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+        }
+
+        // Draw playhead line
+        if (progress > 0 && progress < 1) {
+            this.waveCtx.shadowBlur = 8;
+            this.waveCtx.shadowColor = accentColor;
+            this.waveCtx.strokeStyle = '#ffffff';
+            this.waveCtx.lineWidth = 2;
+            this.waveCtx.beginPath();
+            this.waveCtx.moveTo(progressX, 0);
+            this.waveCtx.lineTo(progressX, height);
+            this.waveCtx.stroke();
+            this.waveCtx.shadowBlur = 0;
         }
     }
 
@@ -691,6 +745,9 @@ class SongVoter {
         this.thumbsValue = isUp;
         this.thumbUpBtn.classList.toggle('selected', isUp);
         this.thumbDownBtn.classList.toggle('selected', !isUp);
+
+        // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(15);
     }
 
     updateRating() {
@@ -713,6 +770,11 @@ class SongVoter {
             b = Math.round(60 + t * 40); // 60 -> 100
         }
         this.ratingValue.style.color = `rgb(${r}, ${g}, ${b})`;
+
+        // Haptic feedback on significant changes
+        if (navigator.vibrate && (value === 1 || value === 5 || value === 10)) {
+            navigator.vibrate(10);
+        }
     }
 
     async submitVote() {
