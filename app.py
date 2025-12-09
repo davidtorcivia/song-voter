@@ -141,7 +141,6 @@ def index():
         'og_image': db.get_setting('og_image', ''),
         'favicon': db.get_setting('favicon', '/static/favicon.ico'),
     }
-    }
     
     # Server-side caching: Get songs from DB
     songs = db.get_all_songs()
