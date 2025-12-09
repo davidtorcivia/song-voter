@@ -252,16 +252,17 @@ class SongVoter {
         this.visCtx.fillRect(0, 0, width, height);
 
         // Draw subtle idle bars
-        const barCount = 32;
-        const barWidth = width / barCount;
+        const barCount = 48;
+        const barWidth = (width / barCount) * 0.8;
+        const gap = (width / barCount) * 0.2;
 
         for (let i = 0; i < barCount; i++) {
             const barHeight = 2 + Math.random() * 4;
-            // Esoteric idle colors
+            // Esoteric idle colors matched to play.html usage
             const hue = 220 + (i / barCount) * 40;
             const light = 20; // Dimmer for idle
             this.visCtx.fillStyle = `hsla(${hue}, 40%, ${light}%, 0.5)`;
-            this.visCtx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            this.visCtx.fillRect(i * (barWidth + gap), height - barHeight, barWidth, barHeight);
         }
     }
 
@@ -308,24 +309,26 @@ class SongVoter {
             this.visCtx.fillStyle = 'rgba(15, 15, 20, 0.4)'; // Darker, transparent bg like play.html
             this.visCtx.fillRect(0, 0, width, height);
 
-            const barWidth = width / bufferLength;
-            let x = 0;
+            const barCount = 48;
+            const barWidth = (width / barCount) * 0.8;
+            const gap = (width / barCount) * 0.2;
 
-            for (let i = 0; i < bufferLength; i++) {
-                const barHeight = (dataArray[i] / 255) * height;
+            for (let i = 0; i < barCount; i++) {
+                const idx = Math.floor(i * bufferLength / barCount);
+                const value = dataArray[idx] / 255;
+                const barHeight = value * height * 0.85;
+                const x = i * (barWidth + gap);
 
                 // Subtle esoteric colors: muted blues and soft purples
-                // Matching play.html implementation
-                const value = dataArray[i] / 255;
-                const hue = 220 + (i / bufferLength) * 40; // 220-260 range
+                // Matching play.html implementation logic
+                const hue = 220 + (i / barCount) * 40; // 220-260 range
                 const sat = 35 + value * 25;
                 const light = 30 + value * 35;
                 const alpha = 0.5 + value * 0.4;
 
                 this.visCtx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
 
-                this.visCtx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
-                x += barWidth;
+                this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
             }
         };
 
