@@ -6,6 +6,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Song Voter</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Admin-specific overrides */
+        .admin-container {
+            max-width: 560px;
+        }
+
+        /* Number input styling */
+        input[type="number"] {
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+        .number-input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .number-btn {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .number-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Better scrollbar */
+        .songs-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .songs-list::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .songs-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .songs-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Song item - cleaner layout */
+        .song-item {
+            display: grid;
+            grid-template-columns: 24px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .song-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Custom checkbox */
+        .song-checkbox {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-radius: 3px;
+            background: transparent;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            position: relative;
+        }
+
+        .song-checkbox:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .song-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 1px;
+            width: 4px;
+            height: 8px;
+            border: solid var(--bg-primary);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        /* Song actions */
+        .song-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .song-actions .btn-icon {
+            width: 28px;
+            height: 28px;
+            font-size: 0.75rem;
+        }
+
+        /* Asset upload */
+        .asset-upload {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .asset-preview {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: var(--bg-elevated);
+        }
+
+        .asset-actions {
+            display: flex;
+            gap: 4px;
+        }
+    </style>
 </head>
 
 <body>
@@ -44,16 +183,21 @@
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Minimum Listen Time</span>
-                    <span class="setting-desc">Seconds before voting enabled</span>
+                    <span class="setting-desc">Seconds before voting</span>
                 </div>
-                <input type="number" id="minListenTime" class="setting-input"
-                    value="{{ settings.min_listen_time or '20' }}" min="0" max="300" style="width: 80px;">
+                <div class="number-input-group">
+                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', -5)">−</button>
+                    <input type="number" id="minListenTime" class="setting-input"
+                        value="{{ settings.min_listen_time or '20' }}" min="0" max="300"
+                        style="width: 60px; text-align: center;">
+                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', 5)">+</button>
+                </div>
             </div>
 
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Disable Skip</span>
-                    <span class="setting-desc">Force users to vote on each song</span>
+                    <span class="setting-desc">Force users to vote</span>
                 </div>
                 <label class="toggle">
                     <input type="checkbox" id="disableSkip" {% if settings.disable_skip=='true' %}checked{% endif %}>
@@ -64,23 +208,23 @@
 
         <!-- Voting Time Window -->
         <div class="card admin-section">
-            <h2>Voting Time Window</h2>
+            <h2>Voting Window</h2>
             <p class="setting-desc" style="margin-bottom: 16px;">Optional: limit when voting is allowed</p>
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">Start Date/Time</span>
+                    <span class="setting-label">Start</span>
                 </div>
                 <input type="datetime-local" id="votingStart" class="setting-input" value="{{ settings.voting_start }}"
-                    style="width: 200px;">
+                    style="width: 180px;">
             </div>
 
             <div class="setting-row">
                 <div class="setting-info">
-                    <span class="setting-label">End Date/Time</span>
+                    <span class="setting-label">End</span>
                 </div>
                 <input type="datetime-local" id="votingEnd" class="setting-input" value="{{ settings.voting_end }}"
-                    style="width: 200px;">
+                    style="width: 180px;">
             </div>
         </div>
 
@@ -92,13 +236,13 @@
                 <div class="setting-info">
                     <span class="setting-label">Show Results</span>
                 </div>
-                <select id="resultsVisibility" class="setting-select" style="width: 180px;">
+                <select id="resultsVisibility" class="setting-select" style="width: 160px;">
                     <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Always
                         Public</option>
                     <option value="until_voting_ends" {% if settings.results_visibility=='until_voting_ends'
                         %}selected{% endif %}>After Voting Ends</option>
-                    <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden from
-                        Public</option>
+                    <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden
+                    </option>
                 </select>
             </div>
         </div>
@@ -114,28 +258,46 @@
             </div>
 
             <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="setting-label">Description (for sharing)</span>
+                <span class="setting-label">Description</span>
                 <input type="text" id="siteDescription" class="setting-input"
                     value="{{ settings.site_description or '' }}" style="width: 100%;"
                     placeholder="Vote on your favorite song versions">
             </div>
 
             <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="setting-label">Site URL (for share cards)</span>
+                <span class="setting-label">Site URL</span>
                 <input type="url" id="siteUrl" class="setting-input" value="{{ settings.site_url or '' }}"
                     style="width: 100%;" placeholder="https://example.com">
             </div>
 
             <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="setting-label">OG Image URL (for Twitter/social cards)</span>
-                <input type="url" id="ogImage" class="setting-input" value="{{ settings.og_image or '' }}"
-                    style="width: 100%;" placeholder="https://example.com/image.jpg">
+                <span class="setting-label">Favicon</span>
+                <div class="asset-upload">
+                    {% if settings.favicon %}
+                    <img src="{{ settings.favicon }}" class="asset-preview" id="faviconPreview">
+                    {% endif %}
+                    <input type="file" id="faviconFile" accept=".ico,.png,.jpg,.jpeg,.webp" hidden>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('faviconFile').click()">Upload</button>
+                    {% if settings.favicon %}
+                    <button type="button" class="btn btn-danger" onclick="deleteAsset('favicon')">Delete</button>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <span class="setting-label">Favicon URL</span>
-                <input type="url" id="favicon" class="setting-input" value="{{ settings.favicon or '' }}"
-                    style="width: 100%;" placeholder="/static/favicon.ico">
+                <span class="setting-label">OG Image (for social sharing)</span>
+                <div class="asset-upload">
+                    {% if settings.og_image %}
+                    <img src="{{ settings.og_image }}" class="asset-preview" id="ogImagePreview">
+                    {% endif %}
+                    <input type="file" id="ogImageFile" accept=".png,.jpg,.jpeg,.webp" hidden>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('ogImageFile').click()">Upload</button>
+                    {% if settings.og_image %}
+                    <button type="button" class="btn btn-danger" onclick="deleteAsset('og_image')">Delete</button>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -146,17 +308,13 @@
         <div class="card admin-section">
             <h2>Songs ({{ songs|length }})</h2>
 
-            <div class="songs-actions">
+            <div class="songs-actions" style="display: flex; gap: 8px; margin-bottom: 12px;">
                 <button id="scanSongs" class="btn btn-secondary">Scan Folder</button>
+                <input type="file" id="songUpload" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
+                <button id="uploadBtn" class="btn btn-primary">Upload</button>
             </div>
 
-            <div class="upload-area">
-                <input type="file" id="songUpload" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
-                <button id="uploadBtn" class="btn btn-primary" style="width: 100%;">
-                    Upload Songs
-                </button>
-                <div id="uploadStatus" class="upload-status"></div>
-            </div>
+            <div id="uploadStatus" class="upload-status"></div>
 
             <div class="bulk-delete-bar" id="bulkDeleteBar">
                 <span><strong id="selectedCount">0</strong> selected</span>
@@ -169,12 +327,13 @@
                     <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
                     <div class="song-info">
                         <span class="song-name">{{ song.filename }}</span>
-                        <span class="song-base">{{ song.base_name }}</span>
+                        <span class="song-base" style="font-size: 0.75rem; color: var(--text-muted);">{{ song.base_name
+                            }}</span>
                     </div>
                     <div class="song-actions">
-                        <a href="/play/{{ song.id }}" class="btn-icon" title="Play">▶</a>
+                        <a href="/play/{{ song.id }}" class="btn-icon" title="Play">&#9654;</a>
                         <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
-                            title="Delete">✕</button>
+                            title="Delete">&#10005;</button>
                     </div>
                 </div>
                 {% endfor %}
@@ -191,7 +350,8 @@
                     <span class="admin-name">{{ admin.username }}{% if loop.first %} <small
                             style="color: var(--text-muted);">(owner)</small>{% endif %}</span>
                     {% if not loop.first %}
-                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}" title="Delete">✕</button>
+                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}"
+                        title="Delete">&#10005;</button>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -205,12 +365,20 @@
         </div>
 
         <div class="nav-footer">
-            <a href="/" class="nav-link">← Back to Site</a>
+            <a href="/" class="nav-link">&#8592; Back to Site</a>
             <a href="/results" class="nav-link">Results</a>
         </div>
     </div>
 
     <script>
+        // Number input adjustment
+        function adjustNumber(id, delta) {
+            const input = document.getElementById(id);
+            const val = parseInt(input.value) || 0;
+            const newVal = Math.max(0, Math.min(300, val + delta));
+            input.value = newVal;
+        }
+
         // Save All Settings
         document.getElementById('saveSettings').addEventListener('click', async () => {
             const settings = {
@@ -224,8 +392,6 @@
                 site_title: document.getElementById('siteTitle').value,
                 site_description: document.getElementById('siteDescription').value,
                 site_url: document.getElementById('siteUrl').value,
-                og_image: document.getElementById('ogImage').value,
-                favicon: document.getElementById('favicon').value,
             };
 
             const res = await fetch('/admin/settings', {
@@ -236,8 +402,44 @@
 
             if (res.ok) {
                 alert('Settings saved!');
+            } else {
+                alert('Failed to save settings');
             }
         });
+
+        // Asset Upload
+        document.getElementById('faviconFile').addEventListener('change', (e) => uploadAsset(e, 'favicon'));
+        document.getElementById('ogImageFile').addEventListener('change', (e) => uploadAsset(e, 'og_image'));
+
+        async function uploadAsset(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', type);
+
+            const res = await fetch('/admin/upload-asset', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                location.reload();
+            } else {
+                const data = await res.json();
+                alert(data.error);
+            }
+        }
+
+        async function deleteAsset(type) {
+            if (!confirm(`Delete ${type}?`)) return;
+
+            const res = await fetch(`/admin/delete-asset/${type}`, { method: 'DELETE' });
+            if (res.ok) {
+                location.reload();
+            }
+        }
 
         // Scan Songs
         document.getElementById('scanSongs').addEventListener('click', async () => {

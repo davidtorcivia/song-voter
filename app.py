@@ -1,14 +1,39 @@
 import os
 import secrets
+from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, send_file, Response, session, redirect, url_for, flash
 import database as db
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# Secret key - generate a stable one if not in env (stored in data dir)
+SECRET_KEY_FILE = os.path.join(os.environ.get('DATABASE_PATH', 'data'), '.secret_key')
+if os.environ.get('SECRET_KEY'):
+    app.secret_key = os.environ.get('SECRET_KEY')
+else:
+    # Try to load existing key, or generate a new one
+    try:
+        os.makedirs(os.path.dirname(SECRET_KEY_FILE), exist_ok=True)
+        if os.path.exists(SECRET_KEY_FILE):
+            with open(SECRET_KEY_FILE, 'r') as f:
+                app.secret_key = f.read().strip()
+        else:
+            app.secret_key = secrets.token_hex(32)
+            with open(SECRET_KEY_FILE, 'w') as f:
+                f.write(app.secret_key)
+    except:
+        app.secret_key = secrets.token_hex(32)
+
+# Session config - 2 week lifetime
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=14)
 
 # Configure songs directory from environment or default
 SONGS_DIR = os.environ.get('SONGS_DIR', 'songs')
+
+# Uploads directory for assets
+UPLOADS_DIR = os.environ.get('UPLOADS_DIR', os.path.join('data', 'uploads'))
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Supported audio extensions
 SUPPORTED_EXTENSIONS = ('.wav', '.mp3', '.flac', '.m4a', '.ogg')
@@ -375,6 +400,7 @@ def admin_login():
         
         admin = db.verify_admin(username, password)
         if admin:
+            session.permanent = True  # Use 2-week session lifetime
             session['admin'] = admin
             session['site_access'] = True
             return redirect(url_for('admin_dashboard'))
@@ -439,6 +465,64 @@ def admin_update_settings():
             db.set_setting(key, value)
     
     return jsonify({'success': True})
+
+
+@app.route('/admin/upload-asset', methods=['POST'])
+@admin_required
+def admin_upload_asset():
+    """Upload an asset (favicon, OG image)."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    asset_type = request.form.get('type', '')  # 'favicon' or 'og_image'
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if asset_type not in ['favicon', 'og_image']:
+        return jsonify({'error': 'Invalid asset type'}), 400
+    
+    # Validate file type
+    allowed_ext = {'.png', '.jpg', '.jpeg', '.ico', '.gif', '.webp'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_ext:
+        return jsonify({'error': f'Invalid file type. Use: {", ".join(allowed_ext)}'}), 400
+    
+    # Save file with asset type as name
+    filename = f'{asset_type}{ext}'
+    filepath = os.path.join(UPLOADS_DIR, filename)
+    file.save(filepath)
+    
+    # Update setting with path
+    asset_url = f'/uploads/{filename}'
+    db.set_setting(asset_type, asset_url)
+    
+    return jsonify({'success': True, 'url': asset_url})
+
+
+@app.route('/admin/delete-asset/<asset_type>', methods=['DELETE'])
+@admin_required
+def admin_delete_asset(asset_type):
+    """Delete an uploaded asset."""
+    if asset_type not in ['favicon', 'og_image']:
+        return jsonify({'error': 'Invalid asset type'}), 400
+    
+    # Get current value
+    current = db.get_setting(asset_type, '')
+    if current.startswith('/uploads/'):
+        filepath = os.path.join(UPLOADS_DIR, os.path.basename(current))
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    
+    db.set_setting(asset_type, '')
+    return jsonify({'success': True})
+
+
+@app.route('/uploads/<filename>')
+def serve_upload(filename):
+    """Serve uploaded files."""
+    return send_file(os.path.join(UPLOADS_DIR, filename))
 
 
 @app.route('/admin/upload', methods=['POST'])
