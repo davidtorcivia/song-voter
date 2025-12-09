@@ -367,23 +367,23 @@ label {
     height: 3px;
     -webkit-appearance: none;
     appearance: none;
-    background: var(--bg-elevated);
+    background: var(--text-secondary);
     border-radius: 2px;
     outline: none;
 }
 
 .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background: var(--text-primary);
     border-radius: 50%;
     cursor: pointer;
 }
 
 .volume-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background: var(--text-primary);
     border-radius: 50%;
     cursor: pointer;
@@ -471,7 +471,7 @@ label {
     height: 3px;
     -webkit-appearance: none;
     appearance: none;
-    background: var(--bg-elevated);
+    background: var(--text-secondary);
     border-radius: 2px;
     outline: none;
 }

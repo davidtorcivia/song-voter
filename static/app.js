@@ -364,8 +364,11 @@ class SongVoter {
         // Push history state for back button handling
         history.pushState({ page: 'player' }, '', '');
 
-        // Setup audio analyser after user interaction (needed for mobile)
-        this.setupAudioAnalyser();
+        // Resize visualizer now that player section is visible
+        // Use requestAnimationFrame to ensure DOM has reflowed
+        requestAnimationFrame(() => {
+            this.resizeVisualizer();
+        });
 
         this.playNext();
     }
