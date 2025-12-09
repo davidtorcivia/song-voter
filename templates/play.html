@@ -6,45 +6,160 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ song.base_name }} - Song Voter</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Play page specific styles to ensure proper rendering */
+        .play-page .visualizer-container {
+            width: 100%;
+            height: 120px;
+            margin-bottom: 16px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+
+        .play-page .visualizer-container canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .play-page .progress-container {
+            position: relative;
+            height: 6px;
+            background: var(--bg-elevated);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .play-page .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-warm));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .play-page .playhead {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+            left: 0;
+        }
+
+        .play-page .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .play-page .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .play-page .control-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .play-page .control-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .play-page .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .play-page .volume-icon {
+            font-size: 1rem;
+        }
+
+        .play-page .volume-slider {
+            width: 100px;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: var(--bg-elevated);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .play-page .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .play-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }
+    </style>
 </head>
 
-<body>
+<body class="play-page">
     <div class="container">
         <h1 id="pageTitle">{{ song.base_name }}</h1>
         <p class="play-subtitle">{{ song.filename }}</p>
 
-        <!-- Player Section - reuses main app styling -->
-        <div class="player-section" style="display: block;">
-            <div class="card">
-                <!-- Visualizer -->
-                <div class="visualizer-container">
-                    <canvas id="visualizer"></canvas>
-                </div>
-
-                <!-- Audio Controls -->
-                <div class="audio-controls">
-                    <div class="progress-container" id="progressBar">
-                        <div class="progress-fill" id="progressFill"></div>
-                        <div class="playhead" id="playhead"></div>
-                    </div>
-
-                    <div class="time-display">
-                        <span id="currentTime">0:00</span>
-                        <span id="totalTime">0:00</span>
-                    </div>
-
-                    <div class="controls-row">
-                        <button id="playBtn" class="control-btn">▶</button>
-                        <div class="volume-control">
-                            <span class="volume-icon">🔊</span>
-                            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
-                                value="1">
-                        </div>
-                    </div>
-                </div>
-
-                <audio id="audioPlayer" preload="auto"></audio>
+        <div class="card">
+            <!-- Visualizer -->
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
             </div>
+
+            <!-- Audio Controls -->
+            <div class="audio-controls">
+                <div class="progress-container" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                    <div class="playhead" id="playhead"></div>
+                </div>
+
+                <div class="time-display">
+                    <span id="currentTime">0:00</span>
+                    <span id="totalTime">0:00</span>
+                </div>
+
+                <div class="controls-row">
+                    <button id="playBtn" class="control-btn">▶</button>
+                    <div class="volume-control">
+                        <span class="volume-icon">🔊</span>
+                        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01"
+                            value="1">
+                    </div>
+                </div>
+            </div>
+
+            <audio id="audioPlayer" preload="auto" crossorigin="anonymous"></audio>
         </div>
 
         <div class="nav-footer">
@@ -76,13 +191,9 @@
             init(songId) {
                 this.audio.src = `/api/songs/${songId}/audio`;
 
-                // Resize visualizer
-                this.resizeVisualizer();
-                window.addEventListener('resize', () => this.resizeVisualizer());
-
                 // Event listeners
                 this.playBtn.addEventListener('click', () => this.togglePlay());
-                this.progressBar.addEventListener('click', (e) => this.seek(e));
+                this.progressBar.addEventListener('click', (e) => this.seekFromEvent(e));
                 this.volumeSlider.addEventListener('input', () => {
                     this.audio.volume = this.volumeSlider.value;
                 });
@@ -122,22 +233,12 @@
                 });
             }
 
-            resizeVisualizer() {
-                const container = this.canvas.parentElement;
-                this.canvas.width = container.offsetWidth * window.devicePixelRatio;
-                this.canvas.height = container.offsetHeight * window.devicePixelRatio;
-            }
-
             togglePlay() {
                 if (this.isPlaying) {
                     this.audio.pause();
                 } else {
                     this.audio.play();
                 }
-            }
-
-            seek(e) {
-                this.seekFromEvent(e);
             }
 
             seekFromEvent(e) {
@@ -150,6 +251,7 @@
             }
 
             updateProgress() {
+                if (isNaN(this.audio.duration)) return;
                 const percent = (this.audio.currentTime / this.audio.duration) * 100;
                 this.progressFill.style.width = `${percent}%`;
                 this.playhead.style.left = `calc(${percent}% - 5px)`;
@@ -182,8 +284,9 @@
                     requestAnimationFrame(draw);
                     this.analyser.getByteFrequencyData(dataArray);
 
-                    const width = this.canvas.offsetWidth;
-                    const height = this.canvas.offsetHeight;
+                    const container = this.canvas.parentElement;
+                    const width = container.offsetWidth;
+                    const height = container.offsetHeight;
 
                     // Set canvas size for retina
                     this.canvas.width = width * window.devicePixelRatio;
@@ -198,7 +301,7 @@
                     for (let i = 0; i < bufferLength; i++) {
                         const barHeight = (dataArray[i] / 255) * height * 0.85;
                         // Warm esoteric colors: deep purple to warm gold
-                        const hue = 280 - (dataArray[i] / 255) * 60; // Purple to magenta
+                        const hue = 280 - (dataArray[i] / 255) * 60;
                         const lightness = 40 + (dataArray[i] / 255) * 25;
                         ctx.fillStyle = `hsla(${hue}, 50%, ${lightness}%, 0.85)`;
                         ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
