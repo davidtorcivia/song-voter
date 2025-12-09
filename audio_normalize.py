@@ -3,6 +3,8 @@ Audio Loudness Normalization using pydub
 
 Normalizes audio files to a target loudness level to enable
 fair A/B comparison without volume bias.
+
+Caches normalized files as high-quality MP3 (320kbps) for efficient streaming.
 """
 
 import os
@@ -11,7 +13,6 @@ from pathlib import Path
 
 try:
     from pydub import AudioSegment
-    from pydub.effects import normalize
     PYDUB_AVAILABLE = True
 except ImportError:
     PYDUB_AVAILABLE = False
@@ -23,6 +24,10 @@ TARGET_DBFS = -14.0
 
 # Cache directory for normalized files
 NORMALIZED_DIR = os.environ.get('NORMALIZED_DIR', 'normalized')
+
+# Output format settings
+OUTPUT_FORMAT = 'mp3'
+OUTPUT_BITRATE = '320k'  # High quality MP3
 
 
 def ensure_normalized_dir():
@@ -38,7 +43,7 @@ def get_normalized_path(original_path):
     # Create hash of original path for unique filename
     path_hash = hashlib.md5(original_path.encode()).hexdigest()[:12]
     original_name = Path(original_path).stem
-    return os.path.join(NORMALIZED_DIR, f"{original_name}_{path_hash}_norm.wav")
+    return os.path.join(NORMALIZED_DIR, f"{original_name}_{path_hash}_norm.{OUTPUT_FORMAT}")
 
 
 def is_normalized(original_path):
@@ -57,7 +62,7 @@ def is_normalized(original_path):
 
 def normalize_audio(input_path, output_path=None, target_dbfs=TARGET_DBFS):
     """
-    Normalize audio file to target loudness.
+    Normalize audio file to target loudness using simple gain adjustment.
     
     Args:
         input_path: Path to original audio file
@@ -76,27 +81,31 @@ def normalize_audio(input_path, output_path=None, target_dbfs=TARGET_DBFS):
     ensure_normalized_dir()
     
     try:
-        # Load audio
+        print(f"Normalizing: {Path(input_path).name}")
+        
+        # Load audio (pydub auto-detects format)
         audio = AudioSegment.from_file(input_path)
         
-        # Calculate current loudness
+        # Calculate current loudness (RMS-based dBFS)
         current_dbfs = audio.dBFS
         
         # Calculate gain needed
         gain_db = target_dbfs - current_dbfs
         
-        # Apply gain (with headroom protection)
-        # Limit gain to prevent clipping
-        if gain_db > 0:
-            # When boosting, also normalize to prevent clipping
-            audio = normalize(audio, headroom=abs(target_dbfs))
-        else:
-            # When reducing, just apply gain
-            audio = audio + gain_db
+        # Apply simple gain adjustment (no limiting/compression)
+        # Clamp gain to prevent extreme adjustments
+        gain_db = max(-20, min(20, gain_db))
+        audio = audio + gain_db
         
-        # Export normalized file
-        audio.export(output_path, format="wav")
+        # Export as high-quality MP3
+        audio.export(
+            output_path, 
+            format=OUTPUT_FORMAT,
+            bitrate=OUTPUT_BITRATE,
+            parameters=["-q:a", "0"]  # Highest quality VBR as fallback
+        )
         
+        print(f"  -> Cached: {Path(output_path).name} (gain: {gain_db:+.1f} dB)")
         return output_path
         
     except Exception as e:
@@ -121,7 +130,7 @@ def get_or_normalize(original_path):
 
 def normalize_all_in_directory(directory):
     """
-    Pre-normalize all WAV files in a directory.
+    Pre-normalize all audio files in a directory.
     Useful for batch processing during scan.
     
     Returns dict mapping original paths to normalized paths.
@@ -129,15 +138,16 @@ def normalize_all_in_directory(directory):
     if not PYDUB_AVAILABLE:
         return {}
     
+    SUPPORTED_EXTENSIONS = ('.wav', '.mp3', '.flac', '.m4a', '.ogg')
+    
     ensure_normalized_dir()
     results = {}
     
     for filename in os.listdir(directory):
-        if filename.lower().endswith('.wav'):
+        if filename.lower().endswith(SUPPORTED_EXTENSIONS):
             original_path = os.path.abspath(os.path.join(directory, filename))
             
             if not is_normalized(original_path):
-                print(f"Normalizing: {filename}")
                 normalized_path = normalize_audio(original_path)
             else:
                 normalized_path = get_normalized_path(original_path)

@@ -67,6 +67,17 @@ def get_audio(song_id):
         print(f"Normalization error: {e}")
         # Fall back to original
     
+    # Detect MIME type based on file extension
+    ext = os.path.splitext(full_path)[1].lower()
+    mime_types = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.flac': 'audio/flac',
+        '.m4a': 'audio/mp4',
+        '.ogg': 'audio/ogg',
+    }
+    mime_type = mime_types.get(ext, 'audio/mpeg')
+    
     # Get file size for range requests
     file_size = os.path.getsize(full_path)
     
@@ -99,7 +110,7 @@ def get_audio(song_id):
         response = Response(
             generate(),
             status=206,
-            mimetype='audio/wav',
+            mimetype=mime_type,
             direct_passthrough=True
         )
         response.headers['Content-Range'] = f'bytes {byte_start}-{byte_end}/{file_size}'
@@ -107,7 +118,7 @@ def get_audio(song_id):
         response.headers['Content-Length'] = length
         return response
     
-    return send_file(full_path, mimetype='audio/wav')
+    return send_file(full_path, mimetype=mime_type)
 
 
 @app.route('/api/songs/<int:song_id>/vote', methods=['POST'])
@@ -149,13 +160,15 @@ def get_results():
 
 @app.route('/api/scan', methods=['POST'])
 def scan_folder():
-    """Scan the songs directory for WAV files."""
+    """Scan the songs directory for audio files (WAV, MP3)."""
     if not os.path.exists(SONGS_DIR):
         return jsonify({'error': f'Songs directory not found: {SONGS_DIR}'}), 400
     
+    SUPPORTED_EXTENSIONS = ('.wav', '.mp3', '.flac', '.m4a', '.ogg')
+    
     count = 0
     for filename in os.listdir(SONGS_DIR):
-        if filename.lower().endswith('.wav'):
+        if filename.lower().endswith(SUPPORTED_EXTENSIONS):
             full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
             db.add_song(filename, full_path)
             count += 1

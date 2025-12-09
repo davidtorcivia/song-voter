@@ -550,10 +550,10 @@ class SongVoter {
     }
 
     onSongEnd() {
-        // Auto-submit if rating was given
-        if (this.thumbsValue !== null || this.ratingSlider.value != 5) {
-            this.submitVote();
-        }
+        // Song finished - just pause and wait for user to vote or skip
+        // Don't auto-submit, let user decide
+        this.stopListenTimer();
+        this.showFeedback('Song ended - vote or skip');
     }
 
     setThumb(isUp) {
