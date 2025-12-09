@@ -44,7 +44,7 @@ def get_songs():
 
 @app.route('/api/songs/<int:song_id>/audio', methods=['GET'])
 def get_audio(song_id):
-    """Stream audio file for a song."""
+    """Stream audio file for a song (loudness normalized)."""
     song = db.get_song_by_id(song_id)
     if not song:
         return jsonify({'error': 'Song not found'}), 404
@@ -52,6 +52,14 @@ def get_audio(song_id):
     full_path = song['full_path']
     if not os.path.exists(full_path):
         return jsonify({'error': 'Audio file not found'}), 404
+    
+    # Use normalized version if available
+    try:
+        import audio_normalize
+        full_path = audio_normalize.get_or_normalize(full_path)
+    except Exception as e:
+        print(f"Normalization error: {e}")
+        # Fall back to original
     
     # Get file size for range requests
     file_size = os.path.getsize(full_path)
