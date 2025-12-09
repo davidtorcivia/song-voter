@@ -18,11 +18,17 @@ class SongVoter {
         this.audioContext = null;
         this.analyser = null;
 
+        // Listening time tracking for 20-second requirement
+        this.listenedTime = 0;
+        this.minListenTime = 20; // seconds
+        this.lastTimeUpdate = 0;
+
         this.initElements();
         this.initEventListeners();
         this.initAudioListeners();
         this.initCasting();
         this.initVisualizer();
+        this.initKeyboardControls();
 
         // Auto-load songs on startup
         this.autoLoadSongs();
@@ -45,6 +51,7 @@ class SongVoter {
         this.castBtn = document.getElementById('castBtn');
         this.progressBar = document.getElementById('progressBar');
         this.progressFill = document.getElementById('progressFill');
+        this.playhead = document.getElementById('playhead');
         this.currentTime = document.getElementById('currentTime');
         this.totalTime = document.getElementById('totalTime');
         this.volumeSlider = document.getElementById('volumeSlider');
@@ -83,6 +90,18 @@ class SongVoter {
         window.addEventListener('popstate', (e) => this.handleBackButton(e));
     }
 
+    initKeyboardControls() {
+        document.addEventListener('keydown', (e) => {
+            // Spacebar to toggle play/pause (when not in an input field)
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (this.currentSong) {
+                    this.togglePlay();
+                }
+            }
+        });
+    }
+
     handleBackButton(e) {
         if (this.playerSection.style.display === 'block') {
             // Go back to setup instead of leaving page
@@ -103,6 +122,10 @@ class SongVoter {
         this.audio.addEventListener('play', () => {
             this.isPlaying = true;
             this.playBtn.textContent = '❙❙';
+            // Resume audio context and start visualizer when audio plays
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
         });
         this.audio.addEventListener('pause', () => {
             this.isPlaying = false;
@@ -142,6 +165,29 @@ class SongVoter {
         this.visCtx = this.visualizer.getContext('2d');
         this.resizeVisualizer();
         window.addEventListener('resize', () => this.resizeVisualizer());
+
+        // Draw initial idle state immediately
+        this.drawIdleVisualizer();
+    }
+
+    drawIdleVisualizer() {
+        if (!this.visCtx) return;
+
+        const width = this.visualizer.width / window.devicePixelRatio;
+        const height = this.visualizer.height / window.devicePixelRatio;
+
+        this.visCtx.fillStyle = '#111111';
+        this.visCtx.fillRect(0, 0, width, height);
+
+        // Draw subtle idle bars
+        const barCount = 32;
+        const barWidth = width / barCount;
+
+        for (let i = 0; i < barCount; i++) {
+            const barHeight = 2 + Math.random() * 4;
+            this.visCtx.fillStyle = 'rgb(50, 50, 50)';
+            this.visCtx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+        }
     }
 
     resizeVisualizer() {
@@ -348,6 +394,11 @@ class SongVoter {
         this.ratingSlider.value = 5;
         this.ratingValue.textContent = '5';
 
+        // Reset listening time tracking
+        this.listenedTime = 0;
+        this.lastTimeUpdate = 0;
+        this.updateSubmitButtonState();
+
         // Load audio
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
@@ -383,6 +434,44 @@ class SongVoter {
         const percent = (this.audio.currentTime / this.audio.duration) * 100;
         this.progressFill.style.width = `${percent}%`;
         this.currentTime.textContent = this.formatTime(this.audio.currentTime);
+
+        // Update playhead icon position
+        if (this.playhead) {
+            this.playhead.style.left = `calc(${percent}% - 7px)`;
+        }
+
+        // Track listening time (only when playing)
+        if (this.isPlaying && !isNaN(this.audio.currentTime)) {
+            const now = this.audio.currentTime;
+            if (this.lastTimeUpdate > 0 && now > this.lastTimeUpdate) {
+                this.listenedTime += now - this.lastTimeUpdate;
+            }
+            this.lastTimeUpdate = now;
+
+            // Update submit button state based on listening time
+            this.updateSubmitButtonState();
+        }
+    }
+
+    updateSubmitButtonState() {
+        if (!this.submitBtn) return;
+
+        const canVote = this.listenedTime >= this.minListenTime;
+
+        // Update submit/vote button
+        if (canVote) {
+            this.submitBtn.disabled = false;
+            this.submitBtn.textContent = 'Next →';
+        } else {
+            this.submitBtn.disabled = true;
+            const remaining = Math.ceil(this.minListenTime - this.listenedTime);
+            this.submitBtn.textContent = `Listen ${remaining}s`;
+        }
+
+        // Disable/enable voting controls (thumbs and rating) based on listen time
+        if (this.thumbUpBtn) this.thumbUpBtn.disabled = !canVote;
+        if (this.thumbDownBtn) this.thumbDownBtn.disabled = !canVote;
+        if (this.ratingSlider) this.ratingSlider.disabled = !canVote;
     }
 
     updateDuration() {
