@@ -839,14 +839,25 @@ def admin_create_block():
     one_time_use = data.get('one_time_use', False)
     voting_restriction = data.get('voting_restriction', '')
     
+    # Per-block settings (None means use global)
+    disable_skip = data.get('disable_skip')
+    min_listen_time = data.get('min_listen_time')
+    if min_listen_time is not None:
+        try:
+            min_listen_time = int(min_listen_time) if str(min_listen_time).strip() else None
+        except ValueError:
+            min_listen_time = None
+    
     created_by = session.get('admin', {}).get('id')
     
     try:
         result = db.create_vote_block(name, song_ids, password, expires_at, created_by,
-                                       one_time_use=one_time_use, voting_restriction=voting_restriction)
+                                       one_time_use=one_time_use, voting_restriction=voting_restriction,
+                                       disable_skip=disable_skip, min_listen_time=min_listen_time)
         return jsonify({'success': True, 'slug': result['slug'], 'id': result['id']})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 
@@ -879,6 +890,18 @@ def admin_update_block(block_id):
     one_time_use = data.get('one_time_use')
     voting_restriction = data.get('voting_restriction')
     
+    # Per-block settings
+    disable_skip = data.get('disable_skip')
+    clear_disable_skip = data.get('clear_disable_skip', False)
+    
+    min_listen_time = data.get('min_listen_time')
+    clear_min_listen_time = data.get('clear_min_listen_time', False)
+    if min_listen_time is not None and not clear_min_listen_time:
+        try:
+            min_listen_time = int(min_listen_time) if str(min_listen_time).strip() else None
+        except ValueError:
+            min_listen_time = None
+    
     try:
         db.update_vote_block(
             block_id,
@@ -888,11 +911,16 @@ def admin_update_block(block_id):
             expires_at=expires_at,
             clear_expires=clear_expires,
             one_time_use=one_time_use,
-            voting_restriction=voting_restriction
+            voting_restriction=voting_restriction,
+            disable_skip=disable_skip,
+            clear_disable_skip=clear_disable_skip,
+            min_listen_time=min_listen_time,
+            clear_min_listen_time=clear_min_listen_time
         )
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 @app.route('/admin/blocks/<int:block_id>', methods=['GET'])

@@ -309,26 +309,20 @@
 
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="editBlockPassword"
-                    placeholder="Enter new password or leave empty to keep current">
-                <div style="margin-top: 6px;">
-                    <label
-                        style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; letter-spacing: normal; font-size: 0.85rem;">
-                        <input type="checkbox" id="editClearPassword" style="width: 16px; height: 16px;">
-                        Remove password protection
-                    </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="password" id="editBlockPassword" style="flex: 1;"
+                        placeholder="Enter new password or leave empty to keep current">
+                    <button type="button" class="btn btn-secondary" onclick="clearEditPassword()"
+                        style="white-space: nowrap;">Clear</button>
                 </div>
             </div>
 
             <div class="form-group">
                 <label>Expiration</label>
-                <input type="datetime-local" id="editBlockExpires">
-                <div style="margin-top: 6px;">
-                    <label
-                        style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; letter-spacing: normal; font-size: 0.85rem;">
-                        <input type="checkbox" id="editClearExpires" style="width: 16px; height: 16px;">
-                        Remove expiration
-                    </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="datetime-local" id="editBlockExpires" style="flex: 1;">
+                    <button type="button" class="btn btn-secondary" onclick="clearEditExpires()"
+                        style="white-space: nowrap;">Clear</button>
                 </div>
             </div>
 
@@ -343,12 +337,20 @@
                 </select>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="editOneTimeUse"
-                    style="width: 18px; height: 18px; accent-color: var(--accent);">
-                <label for="editOneTimeUse"
-                    style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 0.9rem; color: var(--text-primary);">One-time
-                    use (voter can only vote once in this block)</label>
+            <div class="form-group">
+                <label>Disable Skip Button</label>
+                <select id="editDisableSkip"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="">Use global setting</option>
+                    <option value="0">No (allow skipping)</option>
+                    <option value="1">Yes (disable skip)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Min Listen Time (seconds)</label>
+                <input type="number" id="editMinListenTime" min="0" placeholder="Empty = use global setting"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
             </div>
 
             <!-- Error message area -->
@@ -362,6 +364,7 @@
             </div>
         </div>
     </div>
+
 
     <!-- Create Block Modal -->
     <div class="modal-overlay" id="createModal">
@@ -409,13 +412,22 @@
                 </select>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="blockOneTimeUse"
-                    style="width: 18px; height: 18px; accent-color: var(--accent);">
-                <label for="blockOneTimeUse"
-                    style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 0.9rem; color: var(--text-primary);">One-time
-                    use (voter can only vote once in this block)</label>
+            <div class="form-group">
+                <label>Disable Skip Button</label>
+                <select id="blockDisableSkip"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="">Use global setting</option>
+                    <option value="0">No (allow skipping)</option>
+                    <option value="1">Yes (disable skip)</option>
+                </select>
             </div>
+
+            <div class="form-group">
+                <label>Min Listen Time (seconds)</label>
+                <input type="number" id="blockMinListenTime" min="0" placeholder="Empty = use global setting"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
+            </div>
+
 
             <!-- Error message area -->
             <div id="createError"
@@ -527,12 +539,14 @@
             document.getElementById('blockName').value = '';
             document.getElementById('blockPassword').value = '';
             document.getElementById('blockExpires').value = '';
-            document.getElementById('blockOneTimeUse').checked = false;
             document.getElementById('blockVotingRestriction').value = '';
+            document.getElementById('blockDisableSkip').value = '';
+            document.getElementById('blockMinListenTime').value = '';
             document.querySelectorAll('#songSelector input[type="checkbox"]').forEach(cb => cb.checked = false);
             clearCreateError();
             document.getElementById('createModal').classList.add('visible');
         }
+
 
 
         function closeCreateModal() {
@@ -579,8 +593,9 @@
 
             const password = document.getElementById('blockPassword').value.trim();
             const expiresAt = document.getElementById('blockExpires').value;
-            const oneTimeUse = document.getElementById('blockOneTimeUse').checked;
             const votingRestriction = document.getElementById('blockVotingRestriction').value;
+            const disableSkip = document.getElementById('blockDisableSkip').value;
+            const minListenTime = document.getElementById('blockMinListenTime').value;
 
             // Disable button while creating
             const createBtn = document.getElementById('createBtn');
@@ -596,8 +611,9 @@
                         song_ids: songIds,
                         password: password || null,
                         expires_at: expiresAt || null,
-                        one_time_use: oneTimeUse,
-                        voting_restriction: votingRestriction
+                        voting_restriction: votingRestriction,
+                        disable_skip: disableSkip === '' ? null : parseInt(disableSkip),
+                        min_listen_time: minListenTime === '' ? null : parseInt(minListenTime)
                     })
                 });
 
@@ -614,6 +630,7 @@
             createBtn.disabled = false;
             createBtn.textContent = 'Create';
         }
+
 
 
         // Copy link
@@ -759,7 +776,6 @@
                 document.getElementById('editBlockId').value = blockId;
                 document.getElementById('editBlockName').value = block.name || '';
                 document.getElementById('editBlockPassword').value = '';
-                document.getElementById('editClearPassword').checked = false;
 
                 // Format expires_at for datetime-local input (remove seconds/timezone)
                 let expiresVal = '';
@@ -769,10 +785,12 @@
                     expiresVal = dt;
                 }
                 document.getElementById('editBlockExpires').value = expiresVal;
-                document.getElementById('editClearExpires').checked = false;
 
                 document.getElementById('editVotingRestriction').value = block.voting_restriction || '';
-                document.getElementById('editOneTimeUse').checked = !!block.one_time_use;
+
+                // New fields
+                document.getElementById('editDisableSkip').value = block.disable_skip !== null ? String(block.disable_skip) : '';
+                document.getElementById('editMinListenTime').value = block.min_listen_time !== null ? block.min_listen_time : '';
 
                 clearEditError();
                 document.getElementById('editModal').classList.add('visible');
@@ -780,6 +798,17 @@
             } catch (err) {
                 showAlert('Error loading block details');
             }
+        }
+
+        // Clear button helpers for edit modal
+        function clearEditPassword() {
+            document.getElementById('editBlockPassword').value = '';
+            document.getElementById('editBlockPassword').dataset.clearPassword = 'true';
+        }
+
+        function clearEditExpires() {
+            document.getElementById('editBlockExpires').value = '';
+            document.getElementById('editBlockExpires').dataset.clearExpires = 'true';
         }
 
         async function saveBlock() {
@@ -794,11 +823,12 @@
             }
 
             const password = document.getElementById('editBlockPassword').value.trim();
-            const clearPassword = document.getElementById('editClearPassword').checked;
+            const clearPassword = document.getElementById('editBlockPassword').dataset.clearPassword === 'true';
             const expiresAt = document.getElementById('editBlockExpires').value;
-            const clearExpires = document.getElementById('editClearExpires').checked;
-            const oneTimeUse = document.getElementById('editOneTimeUse').checked;
+            const clearExpires = document.getElementById('editBlockExpires').dataset.clearExpires === 'true';
             const votingRestriction = document.getElementById('editVotingRestriction').value;
+            const disableSkip = document.getElementById('editDisableSkip').value;
+            const minListenTime = document.getElementById('editMinListenTime').value;
 
             const editBtn = document.getElementById('editBtn');
             editBtn.disabled = true;
@@ -811,11 +841,14 @@
                     body: JSON.stringify({
                         name,
                         password: password || null,
-                        clear_password: clearPassword,
+                        clear_password: clearPassword && !password,
                         expires_at: expiresAt || null,
-                        clear_expires: clearExpires,
-                        one_time_use: oneTimeUse,
-                        voting_restriction: votingRestriction
+                        clear_expires: clearExpires && !expiresAt,
+                        voting_restriction: votingRestriction,
+                        disable_skip: disableSkip === '' ? null : parseInt(disableSkip),
+                        clear_disable_skip: disableSkip === '',
+                        min_listen_time: minListenTime === '' ? null : parseInt(minListenTime),
+                        clear_min_listen_time: minListenTime === ''
                     })
                 });
 
@@ -833,6 +866,7 @@
             editBtn.textContent = 'Save';
         }
     </script>
+
 
 
 </body>

@@ -74,6 +74,8 @@ def init_db():
             expires_at TIMESTAMP,
             one_time_use INTEGER DEFAULT 0,
             voting_restriction TEXT DEFAULT '',
+            disable_skip INTEGER,
+            min_listen_time INTEGER,
             created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES admins(id)
@@ -150,6 +152,12 @@ def init_db():
     if 'voting_restriction' not in block_columns:
         cursor.execute("ALTER TABLE vote_blocks ADD COLUMN voting_restriction TEXT DEFAULT ''")
         print("Migration: Added voting_restriction column to vote_blocks table")
+    if 'disable_skip' not in block_columns:
+        cursor.execute("ALTER TABLE vote_blocks ADD COLUMN disable_skip INTEGER")
+        print("Migration: Added disable_skip column to vote_blocks table")
+    if 'min_listen_time' not in block_columns:
+        cursor.execute("ALTER TABLE vote_blocks ADD COLUMN min_listen_time INTEGER")
+        print("Migration: Added min_listen_time column to vote_blocks table")
     
     # Create initial admin from environment if specified
     admin_user = os.environ.get('ADMIN_USER')
@@ -550,7 +558,8 @@ def generate_block_slug():
 
 
 def create_vote_block(name, song_ids, password=None, expires_at=None, created_by=None, 
-                       one_time_use=False, voting_restriction=''):
+                       one_time_use=False, voting_restriction='',
+                       disable_skip=None, min_listen_time=None):
     """Create a new vote block with selected songs."""
     conn = get_db()
     cursor = conn.cursor()
@@ -560,9 +569,11 @@ def create_vote_block(name, song_ids, password=None, expires_at=None, created_by
     
     try:
         cursor.execute('''
-            INSERT INTO vote_blocks (name, slug, password_hash, expires_at, created_by, one_time_use, voting_restriction)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (name, slug, password_hash, expires_at, created_by, 1 if one_time_use else 0, voting_restriction))
+            INSERT INTO vote_blocks (name, slug, password_hash, expires_at, created_by, 
+                                      one_time_use, voting_restriction, disable_skip, min_listen_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, slug, password_hash, expires_at, created_by, 
+              1 if one_time_use else 0, voting_restriction, disable_skip, min_listen_time))
         
         block_id = cursor.lastrowid
         
@@ -580,6 +591,7 @@ def create_vote_block(name, song_ids, password=None, expires_at=None, created_by
     
     conn.close()
     return {'id': block_id, 'slug': slug}
+
 
 
 def get_vote_block_by_slug(slug):
@@ -676,7 +688,9 @@ def delete_vote_block(block_id):
 
 def update_vote_block(block_id, name=None, password=None, clear_password=False,
                        expires_at=None, clear_expires=False, 
-                       one_time_use=None, voting_restriction=None):
+                       one_time_use=None, voting_restriction=None,
+                       disable_skip=None, clear_disable_skip=False,
+                       min_listen_time=None, clear_min_listen_time=False):
     """Update a vote block's settings."""
     conn = get_db()
     cursor = conn.cursor()
@@ -708,6 +722,18 @@ def update_vote_block(block_id, name=None, password=None, clear_password=False,
         updates.append('voting_restriction = ?')
         params.append(voting_restriction)
     
+    if clear_disable_skip:
+        updates.append('disable_skip = NULL')
+    elif disable_skip is not None:
+        updates.append('disable_skip = ?')
+        params.append(disable_skip)
+    
+    if clear_min_listen_time:
+        updates.append('min_listen_time = NULL')
+    elif min_listen_time is not None:
+        updates.append('min_listen_time = ?')
+        params.append(min_listen_time)
+    
     if not updates:
         conn.close()
         return False
@@ -718,6 +744,7 @@ def update_vote_block(block_id, name=None, password=None, clear_password=False,
     updated = cursor.rowcount > 0
     conn.close()
     return updated
+
 
 
 def verify_block_password(block, password):
