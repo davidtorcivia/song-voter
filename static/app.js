@@ -152,9 +152,11 @@ class SongVoter {
         this.waveformCanvas.addEventListener('mousemove', (e) => {
             const rect = this.waveformCanvas.getBoundingClientRect();
             this.hoverX = e.clientX - rect.left;
+            this.waveformDirty = true; // Trigger redraw on hover
         });
         this.waveformCanvas.addEventListener('mouseleave', () => {
             this.hoverX = -1;
+            this.waveformDirty = true; // Trigger redraw when leaving
         });
 
         this.waveformCanvas.addEventListener('touchstart', (e) => {
@@ -306,6 +308,35 @@ class SongVoter {
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 128; // Increased for more detail
 
+            // Pre-allocate typed arrays once (performance optimization)
+            const bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(bufferLength);
+            this.frequencyData = new Uint8Array(bufferLength);
+
+            // Cache visualizer hue (avoid parsing color every frame)
+            const visualizerColor = window.VISUALIZER_COLOR || '';
+            if (visualizerColor && visualizerColor !== '') {
+                const vHex = visualizerColor.replace('#', '');
+                const vr = parseInt(vHex.substr(0, 2), 16) / 255;
+                const vg = parseInt(vHex.substr(2, 2), 16) / 255;
+                const vb = parseInt(vHex.substr(4, 2), 16) / 255;
+                const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
+                let vh = 0;
+                if (vmax !== vmin) {
+                    const vd = vmax - vmin;
+                    if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
+                    else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
+                    else vh = ((vr - vg) / vd + 4) / 6;
+                }
+                this.visualizerHue = Math.round(vh * 360);
+            } else {
+                // Default: Classic VU meter green
+                this.visualizerHue = 120;
+            }
+
+            // Detect low-power device for reduced complexity
+            this.isLowPowerDevice = (navigator.hardwareConcurrency || 4) <= 4;
+
             // Create gain node for volume control AFTER analyser
             this.gainNode = this.audioContext.createGain();
             this.gainNode.gain.value = this.volumeSlider ? this.volumeSlider.value / 100 : 1;
@@ -329,20 +360,27 @@ class SongVoter {
     drawVisualizer() {
         if (!this.analyser || !this.visCtx) return;
 
-        const bufferLength = this.analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        const frequencyData = new Uint8Array(bufferLength);
         const mode = window.VISUALIZER_MODE || 'bars';
 
-        // Trail history for ghost effect
+        // Trail history for ghost effect (moved outside draw loop but kept in closure)
         const trailHistory = [];
-        const maxTrails = 5;
+        const maxTrails = this.isLowPowerDevice ? 2 : 5;
 
-        // Get accent color
-        const accentColor = this.accentColor || '#a78bfa';
+        // Use cached hue from setup
+        const accentHue = this.visualizerHue || 120;
+        const isDefaultAccent = !window.VISUALIZER_COLOR;
+
+        // Bar count based on device capability
+        const barCount = this.isLowPowerDevice ? 32 : 64;
 
         const draw = () => {
-            requestAnimationFrame(draw);
+            // Store RAF ID so we can cancel it when paused
+            this.visualizerRAF = requestAnimationFrame(draw);
+
+            // Skip drawing when paused (major performance win)
+            if (!this.isPlaying) {
+                return;
+            }
 
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
@@ -350,61 +388,20 @@ class SongVoter {
             // Clear for fully transparent background (shows card through)
             this.visCtx.clearRect(0, 0, width, height);
 
-            // Get appropriate data
-            this.analyser.getByteTimeDomainData(dataArray);
-            this.analyser.getByteFrequencyData(frequencyData);
+            // Get appropriate data using pre-allocated arrays
+            this.analyser.getByteTimeDomainData(this.dataArray);
+            this.analyser.getByteFrequencyData(this.frequencyData);
 
-            // Parse accent color to get HSL values for dynamic coloring
-            const accentHex = accentColor.replace('#', '');
-            const r = parseInt(accentHex.substr(0, 2), 16) / 255;
-            const g = parseInt(accentHex.substr(2, 2), 16) / 255;
-            const b = parseInt(accentHex.substr(4, 2), 16) / 255;
-            const max = Math.max(r, g, b), min = Math.min(r, g, b);
-            let h = 0;
-            if (max !== min) {
-                const d = max - min;
-                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-                else if (max === g) h = ((b - r) / d + 2) / 6;
-                else h = ((r - g) / d + 4) / 6;
-            }
-            const rawHue = Math.round(h * 360);
-
-            // Visualizer color logic: Custom color OR default VU green - NEVER accent color
-            const visualizerColor = window.VISUALIZER_COLOR || '';
-            const useCustomColor = visualizerColor && visualizerColor !== '';
-
-            let accentHue;
-            if (useCustomColor) {
-                // Parse custom visualizer color to hue
-                const vHex = visualizerColor.replace('#', '');
-                const vr = parseInt(vHex.substr(0, 2), 16) / 255;
-                const vg = parseInt(vHex.substr(2, 2), 16) / 255;
-                const vb = parseInt(vHex.substr(4, 2), 16) / 255;
-                const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
-                let vh = 0;
-                if (vmax !== vmin) {
-                    const vd = vmax - vmin;
-                    if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
-                    else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
-                    else vh = ((vr - vg) / vd + 4) / 6;
-                }
-                accentHue = Math.round(vh * 360);
-            } else {
-                // Default: Classic VU meter green (accent color is NEVER used)
-                accentHue = 120;
-            }
-
-            const isDefaultAccent = !useCustomColor;
+            const bufferLength = this.dataArray.length;
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
-                const barCount = 64; // More bars for smoother look
                 const barWidth = (width / barCount) * 0.85;
                 const gap = (width / barCount) * 0.15;
 
                 for (let i = 0; i < barCount; i++) {
                     const idx = Math.floor(i * bufferLength / barCount);
-                    const value = frequencyData[idx] / 255;
+                    const value = this.frequencyData[idx] / 255;
                     const barHeight = value * height * 0.9;
                     const x = i * (barWidth + gap);
 
@@ -418,12 +415,15 @@ class SongVoter {
                         const sat = 30 + value * 40;
                         const light = 20 + value * 30;
 
-                        // Create vertical gradient for each bar
-                        const barGrad = this.visCtx.createLinearGradient(0, height, 0, height - barHeight);
-                        barGrad.addColorStop(0, `hsla(${barHue}, ${sat}%, ${light}%, 0.6)`);
-                        barGrad.addColorStop(1, `hsla(${barHue}, ${sat}%, ${light}%, 0.15)`);
-
-                        this.visCtx.fillStyle = barGrad;
+                        // Skip gradient on low-power devices
+                        if (this.isLowPowerDevice) {
+                            this.visCtx.fillStyle = `hsla(${barHue}, ${sat}%, ${light}%, 0.5)`;
+                        } else {
+                            const barGrad = this.visCtx.createLinearGradient(0, height, 0, height - barHeight);
+                            barGrad.addColorStop(0, `hsla(${barHue}, ${sat}%, ${light}%, 0.6)`);
+                            barGrad.addColorStop(1, `hsla(${barHue}, ${sat}%, ${light}%, 0.15)`);
+                            this.visCtx.fillStyle = barGrad;
+                        }
                     } else {
                         // Bars-only mode: full vibrant bars
                         const sat = 50 + value * 40;
@@ -439,7 +439,7 @@ class SongVoter {
                 // Calculate average amplitude for reactive effects
                 let avgAmplitude = 0;
                 for (let i = 0; i < bufferLength; i++) {
-                    avgAmplitude += Math.abs(dataArray[i] - 128);
+                    avgAmplitude += Math.abs(this.dataArray[i] - 128);
                 }
                 avgAmplitude = (avgAmplitude / bufferLength) / 128; // 0-1 range
 
@@ -449,7 +449,7 @@ class SongVoter {
                 const sliceWidth = width / (bufferLength - 1);
 
                 for (let i = 0; i < bufferLength; i++) {
-                    const v = dataArray[i] / 128.0;
+                    const v = this.dataArray[i] / 128.0;
                     const y = (v * height) / 2;
                     currentPoints.push({ x: i * sliceWidth, y });
                 }
@@ -459,29 +459,32 @@ class SongVoter {
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
                 // Green oscilloscope: classic VU green → electric blue complement
-                const baseHue = isDefaultAccent ? 120 : accentHue; // VU meter green
-                const compHue = isDefaultAccent ? 180 : (accentHue + 180) % 360; // Cyan complement
+                const baseHue = accentHue;
 
                 // Draw trails (oldest to newest, fading) - Green VU gradient
-                for (let t = trailHistory.length - 1; t >= 0; t--) {
-                    const points = trailHistory[t];
-                    const trailAlpha = (1 - t / maxTrails) * 0.2;
+                // Skip trails on low-power devices
+                if (!this.isLowPowerDevice) {
+                    for (let t = trailHistory.length - 1; t >= 0; t--) {
+                        const points = trailHistory[t];
+                        const trailAlpha = (1 - t / maxTrails) * 0.2;
 
-                    if (t > 0) {
-                        this.visCtx.strokeStyle = `hsla(${baseHue}, 60%, 50%, ${trailAlpha})`;
-                        this.visCtx.lineWidth = 1;
-                        this.visCtx.beginPath();
-                        this.drawSmoothCurve(points, false);
-                        this.visCtx.stroke();
+                        if (t > 0) {
+                            this.visCtx.strokeStyle = `hsla(${baseHue}, 60%, 50%, ${trailAlpha})`;
+                            this.visCtx.lineWidth = 1;
+                            this.visCtx.beginPath();
+                            this.drawSmoothCurve(points, false);
+                            this.visCtx.stroke();
+                        }
                     }
                 }
 
                 // In 'both' mode, reduce oscilloscope prominence so bars show through
                 const isBothMode = mode === 'both';
                 const lineOpacity = isBothMode ? 0.7 : 1;
-                const glowStrength = isBothMode ? 4 : 8;
+                // Reduce glow on low-power devices
+                const glowStrength = this.isLowPowerDevice ? 0 : (isBothMode ? 4 : 8);
 
-                // Green VU gradient for oscilloscope (no blue/cyan)
+                // Green VU gradient for oscilloscope
                 const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
                 const satBoost = 65 + avgAmplitude * 25;
                 const lightBoost = 45 + avgAmplitude * 30;
@@ -491,22 +494,26 @@ class SongVoter {
 
                 // Draw main oscilloscope line with green glow
                 this.visCtx.globalAlpha = lineOpacity;
-                this.visCtx.shadowColor = `hsl(${baseHue}, 60%, 50%)`;
-                this.visCtx.shadowBlur = glowStrength;
+                if (glowStrength > 0) {
+                    this.visCtx.shadowColor = `hsl(${baseHue}, 60%, 50%)`;
+                    this.visCtx.shadowBlur = glowStrength;
+                }
                 this.visCtx.strokeStyle = gradient;
                 this.visCtx.lineWidth = isBothMode ? 1.5 + avgAmplitude * 0.5 : 2 + avgAmplitude;
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, false);
                 this.visCtx.stroke();
 
-                // Draw mirrored line (below center) - subtle green
-                this.visCtx.strokeStyle = `hsla(${baseHue}, 50%, 40%, 0.3)`;
-                this.visCtx.shadowBlur = 2;
-                this.visCtx.lineWidth = 1;
-                this.visCtx.globalAlpha = 0.3;
-                this.visCtx.beginPath();
-                this.drawSmoothCurve(currentPoints, true);
-                this.visCtx.stroke();
+                // Draw mirrored line (below center) - subtle green (skip on low-power)
+                if (!this.isLowPowerDevice) {
+                    this.visCtx.strokeStyle = `hsla(${baseHue}, 50%, 40%, 0.3)`;
+                    this.visCtx.shadowBlur = 2;
+                    this.visCtx.lineWidth = 1;
+                    this.visCtx.globalAlpha = 0.3;
+                    this.visCtx.beginPath();
+                    this.drawSmoothCurve(currentPoints, true);
+                    this.visCtx.stroke();
+                }
 
                 // Reset
                 this.visCtx.shadowBlur = 0;
@@ -829,15 +836,21 @@ class SongVoter {
     updateProgress() {
         if (!this.waveformCanvas) return;
         this.currentTime.textContent = this.formatTime(this.audio.currentTime);
-        // Drawing happens in animation loop now for smoothness
+
+        // Mark waveform as needing redraw
+        this.waveformDirty = true;
 
         // Update submit button state (timer is handled separately)
         this.updateSubmitButtonState();
     }
 
     animateWaveform() {
-        this.drawWaveform();
-        requestAnimationFrame(() => this.animateWaveform());
+        // Only draw if playing OR if dirty (seek/hover)
+        if (this.isPlaying || this.waveformDirty) {
+            this.drawWaveform();
+            this.waveformDirty = false;
+        }
+        this.waveformRAF = requestAnimationFrame(() => this.animateWaveform());
     }
 
     drawWaveform() {

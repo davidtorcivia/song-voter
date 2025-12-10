@@ -257,12 +257,15 @@
 
                     // Hover effect tracking
                     this.hoverX = -1;
+                    this.waveformDirty = true; // Initial draw
                     this.waveformCanvas.addEventListener('mousemove', (e) => {
                         const rect = this.waveformCanvas.getBoundingClientRect();
                         this.hoverX = e.clientX - rect.left;
+                        this.waveformDirty = true; // Trigger redraw on hover
                     });
                     this.waveformCanvas.addEventListener('mouseleave', () => {
                         this.hoverX = -1;
+                        this.waveformDirty = true; // Trigger redraw when leaving
                     });
 
                     this.waveformCanvas.addEventListener('touchstart', (e) => {
@@ -358,11 +361,15 @@
             updateProgress() {
                 if (!this.waveformCanvas) return;
                 this.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
-                // Drawing handled by animation loop
+                this.waveformDirty = true; // Mark for redraw
             }
 
             animateWaveform() {
-                this.drawWaveform();
+                // Only draw if playing OR if dirty (seek/hover)
+                if (this.isPlaying || this.waveformDirty) {
+                    this.drawWaveform();
+                    this.waveformDirty = false;
+                }
                 requestAnimationFrame(() => this.animateWaveform());
             }
 
@@ -474,6 +481,34 @@
                 this.analyser = this.audioContext.createAnalyser();
                 this.analyser.fftSize = 256;
 
+                // Pre-allocate typed arrays once (performance optimization)
+                const bufferLength = this.analyser.frequencyBinCount;
+                this.dataArray = new Uint8Array(bufferLength);
+                this.frequencyData = new Uint8Array(bufferLength);
+
+                // Cache visualizer hue (avoid parsing color every frame)
+                const visualizerColor = window.VISUALIZER_COLOR || '';
+                if (visualizerColor && visualizerColor !== '') {
+                    const vHex = visualizerColor.replace('#', '');
+                    const vr = parseInt(vHex.substr(0, 2), 16) / 255;
+                    const vg = parseInt(vHex.substr(2, 2), 16) / 255;
+                    const vb = parseInt(vHex.substr(4, 2), 16) / 255;
+                    const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
+                    let vh = 0;
+                    if (vmax !== vmin) {
+                        const vd = vmax - vmin;
+                        if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
+                        else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
+                        else vh = ((vr - vg) / vd + 4) / 6;
+                    }
+                    this.visualizerHue = Math.round(vh * 360);
+                } else {
+                    this.visualizerHue = 120; // Default VU green
+                }
+
+                // Detect low-power device
+                this.isLowPowerDevice = (navigator.hardwareConcurrency || 4) <= 4;
+
                 // Create gain node for volume control AFTER analyser
                 this.gainNode = this.audioContext.createGain();
                 this.gainNode.gain.value = this.volumeSlider ? parseFloat(this.volumeSlider.value) : 1;
@@ -492,17 +527,23 @@
 
             drawVisualizer() {
                 const ctx = this.canvas.getContext('2d');
-                const bufferLength = this.analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                const frequencyData = new Uint8Array(bufferLength);
                 const mode = window.VISUALIZER_MODE || 'bars';
 
-                // Trail history for ghost effect
-                const trailHistory = [];
-                const maxTrails = 5;
+                // Use pre-allocated arrays from setup
+                const dataArray = this.dataArray;
+                const frequencyData = this.frequencyData;
+                const bufferLength = dataArray.length;
 
-                // Get accent color
-                const accentColor = this.accentColor || '#a78bfa';
+                // Trail history for ghost effect (kept in closure)
+                const trailHistory = [];
+                const maxTrails = this.isLowPowerDevice ? 2 : 5;
+
+                // Use cached hue from setup
+                const accentHue = this.visualizerHue || 120;
+                const isDefaultAccent = !window.VISUALIZER_COLOR;
+
+                // Bar count based on device capability
+                const barCount = this.isLowPowerDevice ? 32 : 64;
 
                 // Helper: Draw smooth bezier curve
                 const drawSmoothCurve = (points, mirror, height) => {
@@ -523,6 +564,11 @@
                 const draw = () => {
                     requestAnimationFrame(draw);
 
+                    // Skip drawing when paused (major performance win)
+                    if (!this.isPlaying) {
+                        return;
+                    }
+
                     const container = this.canvas.parentElement;
                     const width = container.offsetWidth;
                     const height = container.offsetHeight;
@@ -535,39 +581,12 @@
                     // Clear for fully transparent background
                     ctx.clearRect(0, 0, width, height);
 
-                    // Get appropriate data
+                    // Get appropriate data using pre-allocated arrays
                     this.analyser.getByteTimeDomainData(dataArray);
                     this.analyser.getByteFrequencyData(frequencyData);
 
-                    // Visualizer color logic: Custom color OR default VU green - NEVER accent color
-                    const visualizerColor = window.VISUALIZER_COLOR || '';
-                    const useCustomColor = visualizerColor && visualizerColor !== '';
-
-                    let accentHue;
-                    if (useCustomColor) {
-                        // Parse custom visualizer color to hue
-                        const vHex = visualizerColor.replace('#', '');
-                        const vr = parseInt(vHex.substr(0, 2), 16) / 255;
-                        const vg = parseInt(vHex.substr(2, 2), 16) / 255;
-                        const vb = parseInt(vHex.substr(4, 2), 16) / 255;
-                        const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
-                        let vh = 0;
-                        if (vmax !== vmin) {
-                            const vd = vmax - vmin;
-                            if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
-                            else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
-                            else vh = ((vr - vg) / vd + 4) / 6;
-                        }
-                        accentHue = Math.round(vh * 360);
-                    } else {
-                        // Default: Classic VU meter green (accent color is NEVER used)
-                        accentHue = 120;
-                    }
-
-
                     // Draw bars first if mode is 'bars' or 'both'
                     if (mode === 'bars' || mode === 'both') {
-                        const barCount = 64; // More bars for smoother look
                         const barWidth = (width / barCount) * 0.85;
                         const gap = (width / barCount) * 0.15;
 

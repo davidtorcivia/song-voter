@@ -45,25 +45,48 @@
 
 body {
     font-family: var(--font-mono);
+    /* Static premium background - animated on desktop only for performance */
     background:
-        radial-gradient(ellipse at 20% 80%, rgba(120, 80, 200, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(80, 120, 200, 0.10) 0%, transparent 50%),
-        radial-gradient(ellipse at 40% 40%, rgba(100, 60, 180, 0.08) 0%, transparent 60%),
-        linear-gradient(135deg, #0a0a0c 0%, #0f0f14 25%, #0a0a0c 50%, #0f0f14 75%, #0a0a0c 100%);
+        radial-gradient(ellipse at 15% 75%, rgba(25, 35, 30, 0.35) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 25%, rgba(20, 25, 35, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(15, 20, 25, 0.25) 0%, transparent 65%),
+        linear-gradient(135deg, #06060a 0%, #0a0a0e 50%, #06060a 100%);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 0.875rem;
-    animation: bgDrift 15s ease-in-out infinite;
-    background-size: 300% 300%;
 
     /* Apply accent color from inline style */
     --accent: var(--accent-color, #e5e5e5);
 }
 
-/* Visible background drift animation */
+/* Desktop-only: Enable background animation on capable devices */
+@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
+    body {
+        background-size: 200% 200%;
+        animation: bgDrift 45s ease-in-out infinite;
+        will-change: background-position;
+        /* GPU hint for smooth animation */
+    }
+
+    /* SVG grain overlay - static layer on top (doesn't animate) */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.03;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        background-size: 200px 200px;
+    }
+}
+
 @keyframes bgDrift {
 
     0%,
@@ -71,15 +94,12 @@ body {
         background-position: 0% 50%;
     }
 
-    33% {
-        background-position: 100% 0%;
-    }
-
-    66% {
-        background-position: 50% 100%;
+    50% {
+        background-position: 100% 50%;
     }
 }
 
+/* Animation keyframes kept for UI elements that need them */
 @keyframes bgPulse {
 
     0%,
@@ -90,33 +110,6 @@ body {
     50% {
         opacity: 0.4;
     }
-}
-
-/* Subtle ambient glow pulse */
-@keyframes ambientGlow {
-
-    0%,
-    100% {
-        filter: brightness(1);
-    }
-
-    50% {
-        filter: brightness(1.02);
-    }
-}
-
-body {
-    background:
-        /* Subtle noise texture overlay */
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
-        /* Desaturated ambient gradients */
-        radial-gradient(ellipse at 15% 75%, rgba(25, 35, 30, 0.35) 0%, transparent 55%),
-        radial-gradient(ellipse at 85% 25%, rgba(20, 25, 35, 0.3) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(15, 20, 25, 0.25) 0%, transparent 65%),
-        linear-gradient(135deg, #06060a 0%, #0a0a0e 50%, #06060a 100%);
-    background-size: 300px 300px, 200% 200%, 200% 200%, 150% 150%, 100% 100%;
-    background-blend-mode: overlay, normal, normal, normal, normal;
-    animation: bgDrift 60s ease-in-out infinite, ambientGlow 8s ease-in-out infinite;
 }
 
 /* Loading shimmer animation */
@@ -266,8 +259,9 @@ h1 {
             rgba(14, 14, 18, 0.5) 0%,
             rgba(10, 10, 14, 0.55) 50%,
             rgba(14, 14, 18, 0.5) 100%);
-    backdrop-filter: blur(32px) saturate(1.1);
-    -webkit-backdrop-filter: blur(32px) saturate(1.1);
+    /* Reduced blur for better performance (12px vs 32px) */
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
     border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-lg);
     padding: 24px;
@@ -277,6 +271,16 @@ h1 {
         inset 0 1px 0 rgba(255, 255, 255, 0.03);
     overflow: hidden;
 }
+
+/* Disable blur entirely for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(14, 14, 18, 0.85);
+    }
+}
+
 
 /* Subtle top highlight */
 .card::before {
