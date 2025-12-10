@@ -363,11 +363,11 @@
                         <span class="block-name">{{ block.name }}</span>
                         <div class="block-badges">
                             {% if block.password_hash %}
-                            <span class="block-badge protected">🔒 Protected</span>
+                            <span class="block-badge protected">Protected</span>
                             {% endif %}
                             {% if block.expires_at %}
                             <span class="block-badge {% if block.expires_at < now %}expired{% endif %}">
-                                ⏱ {{ block.expires_at[:16] if block.expires_at else '' }}
+                                Expires {{ block.expires_at[:16] if block.expires_at else '' }}
                             </span>
                             {% endif %}
                         </div>
@@ -381,9 +381,9 @@
                         <div class="block-link">
                             <input type="text" readonly value="{{ request.host_url }}vote/block/{{ block.slug }}"
                                 id="link_{{ block.id }}">
-                            <button class="copy-btn" onclick="copyLink({{ block.id }})" title="Copy">📋</button>
+                            <button class="copy-btn" onclick="copyLink({{ block.id }})" title="Copy">Copy</button>
                         </div>
-                        <button class="btn btn-secondary" onclick="viewResults({{ block.id }})">📊 Results</button>
+                        <button class="btn btn-secondary" onclick="viewResults({{ block.id }})">Results</button>
                         <button class="btn btn-danger"
                             onclick="deleteBlock({{ block.id }}, '{{ block.name }}')">Delete</button>
                     </div>
@@ -391,7 +391,6 @@
                 {% endfor %}
                 {% else %}
                 <div class="empty-state">
-                    <div class="empty-state-icon">📦</div>
                     <p>No vote blocks yet. Create one to share private voting links.</p>
                 </div>
                 {% endif %}

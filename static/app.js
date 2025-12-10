@@ -650,13 +650,20 @@ class SongVoter {
     }
 
     async startVoting() {
-        this.mode = this.modeSelect.value;
-
-        if (this.mode === 'all') {
+        // In block mode, use all songs; otherwise use mode selector
+        if (window.BLOCK_MODE) {
+            this.mode = 'all';
             this.queue = [...this.songs];
         } else {
-            this.queue = this.songs.filter(s => s.base_name === this.mode);
+            this.mode = this.modeSelect.value;
+
+            if (this.mode === 'all') {
+                this.queue = [...this.songs];
+            } else {
+                this.queue = this.songs.filter(s => s.base_name === this.mode);
+            }
         }
+
 
         // Shuffle
         for (let i = this.queue.length - 1; i > 0; i--) {
