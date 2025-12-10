@@ -31,7 +31,7 @@ def init_db():
         )
     ''')
     
-    # Votes table with voter tracking
+    # Votes table with voter tracking and optional block association
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS votes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,8 +39,10 @@ def init_db():
             thumbs_up BOOLEAN,
             rating INTEGER CHECK(rating >= 1 AND rating <= 10),
             voter_id TEXT,
+            block_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (song_id) REFERENCES songs(id)
+            FOREIGN KEY (song_id) REFERENCES songs(id),
+            FOREIGN KEY (block_id) REFERENCES vote_blocks(id) ON DELETE SET NULL
         )
     ''')
     
@@ -59,6 +61,33 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Vote blocks table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS vote_blocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            password_hash TEXT,
+            expires_at TIMESTAMP,
+            one_time_use INTEGER DEFAULT 0,
+            voting_restriction TEXT DEFAULT '',
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES admins(id)
+        )
+    ''')
+    
+    # Vote block songs (many-to-many)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS vote_block_songs (
+            block_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            PRIMARY KEY (block_id, song_id),
+            FOREIGN KEY (block_id) REFERENCES vote_blocks(id) ON DELETE CASCADE,
+            FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
         )
     ''')
     
@@ -92,6 +121,9 @@ def init_db():
         'accent_color': '#ffffff',  # Accent color for waveform, etc.
         'visualizer_mode': 'bars',  # bars, wave, or both
         'visualizer_color': '',  # Empty = use default VU green, otherwise hex color
+        
+        # Homepage control
+        'homepage_closed': 'false',  # When true, homepage shows only title/description
     }
     for key, value in default_settings.items():
         cursor.execute(
@@ -105,6 +137,19 @@ def init_db():
     if 'voter_id' not in columns:
         cursor.execute("ALTER TABLE votes ADD COLUMN voter_id TEXT")
         print("Migration: Added voter_id column to votes table")
+    if 'block_id' not in columns:
+        cursor.execute("ALTER TABLE votes ADD COLUMN block_id INTEGER")
+        print("Migration: Added block_id column to votes table")
+    
+    # Migration: Add new columns to vote_blocks table
+    cursor.execute("PRAGMA table_info(vote_blocks)")
+    block_columns = [col[1] for col in cursor.fetchall()]
+    if 'one_time_use' not in block_columns:
+        cursor.execute("ALTER TABLE vote_blocks ADD COLUMN one_time_use INTEGER DEFAULT 0")
+        print("Migration: Added one_time_use column to vote_blocks table")
+    if 'voting_restriction' not in block_columns:
+        cursor.execute("ALTER TABLE vote_blocks ADD COLUMN voting_restriction TEXT DEFAULT ''")
+        print("Migration: Added voting_restriction column to vote_blocks table")
     
     # Create initial admin from environment if specified
     admin_user = os.environ.get('ADMIN_USER')
@@ -355,29 +400,35 @@ def get_voter_id(request):
     return None  # No restriction
 
 
-def has_voted(song_id, voter_id):
-    """Check if this voter has already voted on this song."""
+def has_voted(song_id, voter_id, block_id=None):
+    """Check if this voter has already voted on this song (optionally in a specific block)."""
     if not voter_id:
         return False
     
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute(
-        'SELECT id FROM votes WHERE song_id = ? AND voter_id = ?',
-        (song_id, voter_id)
-    )
+    if block_id:
+        cursor.execute(
+            'SELECT id FROM votes WHERE song_id = ? AND voter_id = ? AND block_id = ?',
+            (song_id, voter_id, block_id)
+        )
+    else:
+        cursor.execute(
+            'SELECT id FROM votes WHERE song_id = ? AND voter_id = ?',
+            (song_id, voter_id)
+        )
     row = cursor.fetchone()
     conn.close()
     return row is not None
 
 
-def add_vote(song_id, thumbs_up, rating, voter_id=None):
-    """Add a vote for a song."""
+def add_vote(song_id, thumbs_up, rating, voter_id=None, block_id=None):
+    """Add a vote for a song (optionally associated with a vote block)."""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO votes (song_id, thumbs_up, rating, voter_id) VALUES (?, ?, ?, ?)',
-        (song_id, thumbs_up, rating, voter_id)
+        'INSERT INTO votes (song_id, thumbs_up, rating, voter_id, block_id) VALUES (?, ?, ?, ?, ?)',
+        (song_id, thumbs_up, rating, voter_id, block_id)
     )
     conn.commit()
     conn.close()
@@ -488,3 +539,209 @@ def clear_all_data():
     cursor.execute('DELETE FROM songs')
     conn.commit()
     conn.close()
+
+
+# ============ Vote Blocks ============
+
+def generate_block_slug():
+    """Generate a unique slug for a vote block."""
+    import secrets
+    return secrets.token_urlsafe(8)[:12]  # 12 char URL-safe slug
+
+
+def create_vote_block(name, song_ids, password=None, expires_at=None, created_by=None, 
+                       one_time_use=False, voting_restriction=''):
+    """Create a new vote block with selected songs."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    slug = generate_block_slug()
+    password_hash = generate_password_hash(password) if password else None
+    
+    try:
+        cursor.execute('''
+            INSERT INTO vote_blocks (name, slug, password_hash, expires_at, created_by, one_time_use, voting_restriction)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (name, slug, password_hash, expires_at, created_by, 1 if one_time_use else 0, voting_restriction))
+        
+        block_id = cursor.lastrowid
+        
+        # Add songs to block
+        for song_id in song_ids:
+            cursor.execute('''
+                INSERT OR IGNORE INTO vote_block_songs (block_id, song_id)
+                VALUES (?, ?)
+            ''', (block_id, song_id))
+        
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise e
+    
+    conn.close()
+    return {'id': block_id, 'slug': slug}
+
+
+def get_vote_block_by_slug(slug):
+    """Get a vote block by its slug."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT vb.*, a.username as creator_name
+        FROM vote_blocks vb
+        LEFT JOIN admins a ON vb.created_by = a.id
+        WHERE vb.slug = ?
+    ''', (slug,))
+    row = cursor.fetchone()
+    block = dict(row) if row else None
+    conn.close()
+    return block
+
+
+def get_vote_block_by_id(block_id):
+    """Get a vote block by its ID."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT vb.*, a.username as creator_name
+        FROM vote_blocks vb
+        LEFT JOIN admins a ON vb.created_by = a.id
+        WHERE vb.id = ?
+    ''', (block_id,))
+    row = cursor.fetchone()
+    block = dict(row) if row else None
+    conn.close()
+    return block
+
+
+def get_vote_block_songs(block_id):
+    """Get all songs in a vote block."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT s.id, s.filename, s.base_name, s.full_path
+        FROM songs s
+        JOIN vote_block_songs vbs ON s.id = vbs.song_id
+        WHERE vbs.block_id = ?
+        ORDER BY s.base_name, s.filename
+    ''', (block_id,))
+    songs = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return songs
+
+
+def get_all_vote_blocks(admin_id=None, is_owner=False):
+    """Get all vote blocks with song counts. Filters by admin unless owner."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if admin_id and not is_owner:
+        # Non-owner admins only see their own blocks
+        cursor.execute('''
+            SELECT vb.*, a.username as creator_name,
+                   (SELECT COUNT(*) FROM vote_block_songs WHERE block_id = vb.id) as song_count,
+                   (SELECT COUNT(*) FROM votes WHERE block_id = vb.id) as vote_count
+            FROM vote_blocks vb
+            LEFT JOIN admins a ON vb.created_by = a.id
+            WHERE vb.created_by = ?
+            ORDER BY vb.created_at DESC
+        ''', (admin_id,))
+    else:
+        # Owner sees all blocks
+        cursor.execute('''
+            SELECT vb.*, a.username as creator_name,
+                   (SELECT COUNT(*) FROM vote_block_songs WHERE block_id = vb.id) as song_count,
+                   (SELECT COUNT(*) FROM votes WHERE block_id = vb.id) as vote_count
+            FROM vote_blocks vb
+            LEFT JOIN admins a ON vb.created_by = a.id
+            ORDER BY vb.created_at DESC
+        ''')
+    
+    blocks = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return blocks
+
+
+def delete_vote_block(block_id):
+    """Delete a vote block."""
+    conn = get_db()
+    cursor = conn.cursor()
+    # Songs association is deleted by CASCADE
+    cursor.execute('DELETE FROM vote_blocks WHERE id = ?', (block_id,))
+    conn.commit()
+    deleted = cursor.rowcount > 0
+    conn.close()
+    return deleted
+
+
+def verify_block_password(block, password):
+    """Verify a vote block password."""
+    if not block or not block.get('password_hash'):
+        return True  # No password required
+    return check_password_hash(block['password_hash'], password)
+
+
+def is_block_expired(block):
+    """Check if a vote block has expired."""
+    if not block or not block.get('expires_at'):
+        return False
+    expires_at = block['expires_at']
+    if isinstance(expires_at, str):
+        expires_at = datetime.fromisoformat(expires_at)
+    return datetime.now() > expires_at
+
+
+def has_voted_in_block(voter_id, block_id):
+    """Check if this voter has voted on any song in this block (for one-time-use)."""
+    if not voter_id or not block_id:
+        return False
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT id FROM votes WHERE voter_id = ? AND block_id = ? LIMIT 1',
+        (voter_id, block_id)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None
+
+
+def get_block_results(block_id):
+    """Get aggregate results for songs in a specific vote block."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT 
+            s.id,
+            s.filename,
+            s.base_name,
+            COUNT(v.id) as vote_count,
+            AVG(v.rating) as avg_rating,
+            SUM(CASE WHEN v.thumbs_up = 1 THEN 1 ELSE 0 END) as thumbs_up_count,
+            SUM(CASE WHEN v.thumbs_up = 0 THEN 1 ELSE 0 END) as thumbs_down_count
+        FROM songs s
+        JOIN vote_block_songs vbs ON s.id = vbs.song_id
+        LEFT JOIN votes v ON s.id = v.song_id AND v.block_id = ?
+        WHERE vbs.block_id = ?
+        GROUP BY s.id
+        ORDER BY s.base_name, s.filename
+    ''', (block_id, block_id))
+    
+    results = []
+    for row in cursor.fetchall():
+        total_thumbs = (row['thumbs_up_count'] or 0) + (row['thumbs_down_count'] or 0)
+        thumbs_up_pct = (row['thumbs_up_count'] / total_thumbs * 100) if total_thumbs > 0 else None
+        
+        results.append({
+            'id': row['id'],
+            'filename': row['filename'],
+            'base_name': row['base_name'],
+            'vote_count': row['vote_count'],
+            'avg_rating': round(row['avg_rating'], 2) if row['avg_rating'] else None,
+            'thumbs_up_pct': round(thumbs_up_pct, 1) if thumbs_up_pct is not None else None,
+        })
+    
+    conn.close()
+    return results

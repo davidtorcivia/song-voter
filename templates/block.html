@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ block.name }} - {{ branding.title or 'Song Voter' }}</title>
+    <meta name="description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ block.name }} - {{ branding.title or 'Song Voter' }}">
+    <meta property="og:description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+    {% if branding.url %}
+    <meta property="og:url" content="{{ branding.url }}/b/{{ block.slug }}">{% endif %}
+    {% if branding.og_image %}
+    <meta property="og:image" content="{{ branding.og_image }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
+    <div class="container">
+        <h1 id="pageTitle">{{ block.name }}</h1>
+
+        <!-- Setup Section (immediate start for blocks) -->
+        <div id="setupSection" class="card setup-section">
+            <div id="loadingIndicator" class="loading" style="display: none;">Loading songs</div>
+
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;">
+                {{ songs|length }} song{% if songs|length != 1 %}s{% endif %} to vote on
+            </p>
+
+            <button id="startBtn" class="btn btn-success" style="width: 100%;">
+                Begin ▶
+            </button>
+        </div>
+
+        <!-- Player Section -->
+        <div id="playerSection" class="player-section">
+            <div class="card">
+                <div class="song-name" id="songName">—</div>
+
+                <!-- Simple Visualizer -->
+                <canvas id="visualizer" class="visualizer"></canvas>
+
+                <div class="audio-controls">
+                    <!-- Progress Bar -->
+                    <div class="progress-container" id="progressBar">
+                        <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+                        <div class="time-display">
+                            <span id="currentTime">0:00</span>
+                            <span id="totalTime">0:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Playback Controls -->
+                    <div class="playback-controls">
+                        <div class="volume-control">
+                            <span>◉</span>
+                            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="80">
+                        </div>
+
+                        <button id="playBtn" class="btn btn-icon btn-primary">▶</button>
+                        <button id="skipBtn" class="btn btn-icon btn-secondary">⏭</button>
+                        <button id="castBtn" class="btn btn-icon btn-secondary" title="Cast">⌘</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voting Section -->
+            <div class="card voting-section">
+                <div class="thumbs-container">
+                    <div class="thumb-group">
+                        <button id="thumbDownBtn" class="thumb-btn down">▽</button>
+                        <span class="thumb-label">Pass</span>
+                    </div>
+                    <div class="thumb-group">
+                        <button id="thumbUpBtn" class="thumb-btn up">△</button>
+                        <span class="thumb-label">Keep</span>
+                    </div>
+                </div>
+
+                <div class="rating-container">
+                    <div class="rating-display">
+                        <span class="rating-value" id="ratingValue">5</span>
+                    </div>
+                    <input type="range" id="ratingSlider" class="rating-slider" min="1" max="10" value="5">
+                    <div class="rating-labels">
+                        <span>1</span>
+                        <span>10</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="submitBtn" class="btn btn-success">
+                        Next →
+                    </button>
+                </div>
+            </div>
+
+            <div class="nav-footer">
+                <a href="/help" class="nav-link">? Help</a>
+            </div>
+        </div>
+
+        <!-- Feedback Toast -->
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+    <!-- Audio element -->
+    <audio id="audioPlayer" crossorigin="anonymous" style="display: none;"></audio>
+
+    <script>
+        // Block mode: provide songs directly, no mode selector
+        window.BLOCK_MODE = true;
+        window.BLOCK_ID = {{ block.id }};
+        window.INITIAL_SONGS = {{ songs | tojson | safe }};
+        window.INITIAL_BASE_NAMES = [];
+        window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
+        window.VISUALIZER_COLOR = '{{ branding.visualizer_color or "" }}';
+    </script>
+    <script src="/static/app.js"></script>
+</body>
+
+</html>

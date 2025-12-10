@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expired - {{ branding.title or 'Song Voter' }}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .expired-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .expired-card {
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .expired-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .expired-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .expired-message {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
+    <div class="expired-page">
+        <div class="expired-card card">
+            <div class="expired-icon">⏱</div>
+            <h1 class="expired-title">{{ block.name }}</h1>
+            <p class="expired-message">This voting session has expired.</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ block.name }} - {{ branding.title or 'Song Voter' }}</title>
+    <meta name="description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .auth-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 48px 24px;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .auth-title {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--text-secondary);
+        }
+
+        .auth-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
+    <div class="auth-page">
+        <div class="auth-card card">
+            <h1 class="auth-title">{{ block.name }}</h1>
+            <p class="auth-subtitle">Enter password to continue</p>
+
+            <form class="auth-form" method="POST">
+                <input type="password" name="password" class="auth-input" placeholder="Password" autofocus required>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Continue →</button>
+            </form>
+
+            {% if error %}
+            <p class="auth-error">{{ error }}</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+
+</html>

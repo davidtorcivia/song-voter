@@ -1056,15 +1056,24 @@ class SongVoter {
         this.submitBtn.disabled = true;
         const rating = parseInt(this.ratingSlider.value);
 
+        // Build vote payload
+        const payload = {
+            thumbs_up: this.thumbsValue,
+            rating: rating
+        };
+
+        // Include block_id when voting in block mode
+        if (window.BLOCK_MODE && window.BLOCK_ID) {
+            payload.block_id = window.BLOCK_ID;
+        }
+
         try {
             const response = await fetch(`/api/songs/${this.currentSong.id}/vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    thumbs_up: this.thumbsValue,
-                    rating: rating
-                })
+                body: JSON.stringify(payload)
             });
+
 
             const data = await response.json();
 

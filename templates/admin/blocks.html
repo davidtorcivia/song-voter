@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote Blocks - Admin - Song Voter</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-container {
+            max-width: 560px;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-box h3 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .modal-box p {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Form styling */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"],
+        .form-group input[type="datetime-local"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        /* Song selector */
+        .song-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px;
+            background: var(--bg-elevated);
+        }
+
+        .song-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .song-option:hover {
+            background: var(--bg-secondary);
+        }
+
+        .song-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .song-option label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin: 0;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .select-all-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .select-all-btn {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .select-all-btn:hover {
+            color: var(--text-primary);
+        }
+
+        /* Block list */
+        .blocks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .block-item {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .block-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .block-badges {
+            display: flex;
+            gap: 6px;
+        }
+
+        .block-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+        }
+
+        .block-badge.protected {
+            background: var(--accent-glow);
+            color: var(--accent-warm);
+        }
+
+        .block-badge.expired {
+            background: var(--danger-muted);
+            color: var(--danger);
+        }
+
+        .block-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .block-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .block-link {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .block-link input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            outline: none;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+        }
+
+        .copy-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .copy-btn.copied {
+            color: var(--positive);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Alert Modal -->
+    <div class="modal-overlay" id="alertModal">
+        <div class="modal-box">
+            <p id="alertMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <p id="confirmMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeConfirm(false)">Cancel</button>
+                <button class="btn btn-danger" onclick="closeConfirm(true)">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal-box" style="max-width: 500px;">
+            <h3 id="resultsTitle">Block Results</h3>
+            <div id="resultsContent" style="margin: 16px 0; max-height: 400px; overflow-y: auto;">
+                <p style="color: var(--text-secondary); text-align: center;">Loading...</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeResultsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Block Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal-box">
+            <h3>Create Vote Block</h3>
+
+            <div class="form-group">
+                <label>Block Name</label>
+                <input type="text" id="blockName" placeholder="e.g., Band Members Review">
+            </div>
+
+            <div class="form-group">
+                <label>Songs</label>
+                <div class="select-all-row">
+                    <button type="button" class="select-all-btn" onclick="toggleAllSongs()">Select All</button>
+                </div>
+                <div class="song-selector" id="songSelector">
+                    {% for song in songs %}
+                    <div class="song-option">
+                        <input type="checkbox" id="song_{{ song.id }}" value="{{ song.id }}">
+                        <label for="song_{{ song.id }}">{{ song.filename }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Password (optional)</label>
+                <input type="password" id="blockPassword" placeholder="Leave empty for no password">
+            </div>
+
+            <div class="form-group">
+                <label>Expiration (optional)</label>
+                <input type="datetime-local" id="blockExpires">
+            </div>
+
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createBlock()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container admin-container">
+        <div class="admin-header">
+            <h1>Vote Blocks</h1>
+            <a href="/admin/" class="btn btn-secondary">← Back</a>
+        </div>
+
+        <div class="card admin-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;">Blocks ({{ blocks|length }})</h2>
+                <button class="btn btn-primary" onclick="showCreateModal()">+ New Block</button>
+            </div>
+
+            <div class="blocks-list" id="blocksList">
+                {% if blocks %}
+                {% for block in blocks %}
+                <div class="block-item" data-id="{{ block.id }}">
+                    <div class="block-header">
+                        <span class="block-name">{{ block.name }}</span>
+                        <div class="block-badges">
+                            {% if block.password_hash %}
+                            <span class="block-badge protected">🔒 Protected</span>
+                            {% endif %}
+                            {% if block.expires_at %}
+                            <span class="block-badge {% if block.expires_at < now %}expired{% endif %}">
+                                ⏱ {{ block.expires_at[:16] if block.expires_at else '' }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="block-meta">
+                        {{ block.song_count }} song{% if block.song_count != 1 %}s{% endif %}
+                        • {{ block.vote_count or 0 }} vote{% if (block.vote_count or 0) != 1 %}s{% endif %}
+                        • Created by {{ block.creator_name or 'Unknown' }}
+                    </div>
+                    <div class="block-actions">
+                        <div class="block-link">
+                            <input type="text" readonly value="{{ request.host_url }}vote/block/{{ block.slug }}"
+                                id="link_{{ block.id }}">
+                            <button class="copy-btn" onclick="copyLink({{ block.id }})" title="Copy">📋</button>
+                        </div>
+                        <button class="btn btn-secondary" onclick="viewResults({{ block.id }})">📊 Results</button>
+                        <button class="btn btn-danger"
+                            onclick="deleteBlock({{ block.id }}, '{{ block.name }}')">Delete</button>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📦</div>
+                    <p>No vote blocks yet. Create one to share private voting links.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="nav-footer">
+            <a href="/" class="nav-link">← Home</a>
+            <a href="/results" class="nav-link">Results</a>
+        </div>
+    </div>
+
+    <script>
+        let confirmCallback = null;
+
+        // Alert modal
+        function showAlert(message) {
+            document.getElementById('alertMessage').textContent = message;
+            document.getElementById('alertModal').classList.add('visible');
+        }
+
+        function closeAlert() {
+            document.getElementById('alertModal').classList.remove('visible');
+        }
+
+        // Confirm modal
+        function showConfirm(message) {
+            return new Promise(resolve => {
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('visible');
+                confirmCallback = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            document.getElementById('confirmModal').classList.remove('visible');
+            if (confirmCallback) {
+                confirmCallback(result);
+                confirmCallback = null;
+            }
+        }
+
+        // Create modal
+        function showCreateModal() {
+            document.getElementById('blockName').value = '';
+            document.getElementById('blockPassword').value = '';
+            document.getElementById('blockExpires').value = '';
+            document.querySelectorAll('#songSelector input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.getElementById('createModal').classList.add('visible');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('visible');
+        }
+
+        // Toggle all songs
+        function toggleAllSongs() {
+            const checkboxes = document.querySelectorAll('#songSelector input[type="checkbox"]');
+            const allChecked = [...checkboxes].every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+
+        // Create block
+        async function createBlock() {
+            const name = document.getElementById('blockName').value.trim();
+            if (!name) {
+                showAlert('Please enter a block name');
+                return;
+            }
+
+            const songIds = [...document.querySelectorAll('#songSelector input[type="checkbox"]:checked')]
+                .map(cb => parseInt(cb.value));
+
+            if (songIds.length === 0) {
+                showAlert('Please select at least one song');
+                return;
+            }
+
+            const password = document.getElementById('blockPassword').value.trim();
+            const expiresAt = document.getElementById('blockExpires').value;
+
+            try {
+                const res = await fetch('/admin/blocks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        song_ids: songIds,
+                        password: password || null,
+                        expires_at: expiresAt || null
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    showAlert(data.error || 'Failed to create block');
+                }
+            } catch (err) {
+                showAlert('Error creating block');
+            }
+        }
+
+        // Copy link
+        function copyLink(blockId) {
+            const input = document.getElementById('link_' + blockId);
+            input.select();
+            document.execCommand('copy');
+
+            const btn = input.parentElement.querySelector('.copy-btn');
+            btn.classList.add('copied');
+            btn.textContent = '✓';
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.textContent = '📋';
+            }, 2000);
+        }
+
+        // Delete block
+        async function deleteBlock(blockId, blockName) {
+            const confirmed = await showConfirm(`Delete "${blockName}"? This cannot be undone.`);
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/admin/blocks/${blockId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    document.querySelector(`.block-item[data-id="${blockId}"]`).remove();
+
+                    // Check if list is now empty
+                    if (document.querySelectorAll('.block-item').length === 0) {
+                        location.reload();
+                    }
+                } else {
+                    showAlert('Failed to delete block');
+                }
+            } catch (err) {
+                showAlert('Error deleting block');
+            }
+        }
+
+        // Results modal functions
+        function closeResultsModal() {
+            document.getElementById('resultsModal').classList.remove('visible');
+        }
+
+        async function viewResults(blockId) {
+            document.getElementById('resultsModal').classList.add('visible');
+            document.getElementById('resultsContent').innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Loading...</p>';
+
+            try {
+                const res = await fetch(`/admin/blocks/${blockId}/results`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    document.getElementById('resultsContent').innerHTML = `<p style="color: var(--danger);">${data.error || 'Failed to load results'}</p>`;
+                    return;
+                }
+
+                document.getElementById('resultsTitle').textContent = `Results: ${data.block.name}`;
+
+                if (data.results.length === 0) {
+                    document.getElementById('resultsContent').innerHTML = '<p style="color: var(--text-secondary); text-align: center;">No votes yet for this block.</p>';
+                    return;
+                }
+
+                let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">';
+                html += '<thead><tr>';
+                html += '<th style="text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--border);">Song</th>';
+                html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">Votes</th>';
+                html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">Avg</th>';
+                html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">+%</th>';
+                html += '</tr></thead>';
+                html += '<tbody>';
+
+                for (const r of data.results) {
+                    const avgRating = r.avg_rating !== null ? r.avg_rating.toFixed(1) : '—';
+                    const thumbsPct = r.thumbs_up_pct !== null ? `${r.thumbs_up_pct}%` : '—';
+
+                    html += '<tr>';
+                    html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); color: var(--text-primary);">${escapeHtml(r.filename)}</td>`;
+                    html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--text-secondary);">${r.vote_count}</td>`;
+                    html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--accent);">${avgRating}</td>`;
+                    html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--positive);">${thumbsPct}</td>`;
+                    html += '</tr>';
+                }
+
+                html += '</tbody></table>';
+                document.getElementById('resultsContent').innerHTML = html;
+
+            } catch (err) {
+                document.getElementById('resultsContent').innerHTML = '<p style="color: var(--danger);">Error loading results</p>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+
+</body>
+
+</html>

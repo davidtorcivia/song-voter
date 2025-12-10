@@ -305,6 +305,26 @@
                     </option>
                 </select>
             </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Close Homepage</span>
+                    <span class="setting-desc">Show only title/description on homepage</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="homepageClosed" {% if settings.homepage_closed=='true' %}checked{% endif
+                        %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row" style="border-bottom: none;">
+                <div class="setting-info">
+                    <span class="setting-label">Vote Blocks</span>
+                    <span class="setting-desc">Create private voting links</span>
+                </div>
+                <a href="/admin/blocks" class="btn btn-secondary" style="padding: 8px 16px;">Manage →</a>
+            </div>
         </div>
 
         <!-- Branding -->
@@ -643,6 +663,7 @@
                 voting_start: document.getElementById('votingStart').value,
                 voting_end: document.getElementById('votingEnd').value,
                 results_visibility: document.getElementById('resultsVisibility').value,
+                homepage_closed: document.getElementById('homepageClosed').checked ? 'true' : 'false',
                 site_title: document.getElementById('siteTitle').value,
                 site_description: document.getElementById('siteDescription').value,
                 site_url: document.getElementById('siteUrl').value,

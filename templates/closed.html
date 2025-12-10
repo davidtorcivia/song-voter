@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ branding.title or 'Song Voter' }}</title>
+    <meta name="description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ branding.title or 'Song Voter' }}">
+    <meta property="og:description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+    {% if branding.url %}
+    <meta property="og:url" content="{{ branding.url }}">{% endif %}
+    {% if branding.og_image %}
+    <meta property="og:image" content="{{ branding.og_image }}">{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .closed-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .closed-content {
+            max-width: 400px;
+        }
+
+        .closed-title {
+            font-size: 2.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .closed-description {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .closed-accent {
+            width: 60px;
+            height: 4px;
+            background: var(--accent, var(--text-muted));
+            border-radius: 2px;
+            margin: 0 auto;
+            opacity: 0.5;
+        }
+
+        .closed-footer {
+            margin-top: 48px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
+    <div class="closed-page">
+        <div class="closed-content">
+            <h1 class="closed-title">{{ branding.title or 'Song Voter' }}</h1>
+            <p class="closed-description">{{ branding.description or 'Voting is currently closed.' }}</p>
+            <div class="closed-accent"></div>
+        </div>
+        <div class="closed-footer">
+            {% if branding.url %}{{ branding.url }}{% endif %}
+        </div>
+    </div>
+</body>
+
+</html>

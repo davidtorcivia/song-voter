@@ -86,8 +86,11 @@ def run_scan():
 @app.before_request
 def before_request():
     """Check site password before each request."""
-    # Skip for static files, admin routes, and gate
-    if request.path.startswith('/static') or request.path.startswith('/admin') or request.path == '/gate':
+    # Skip for static files, admin routes, gate, and vote blocks
+    if (request.path.startswith('/static') or 
+        request.path.startswith('/admin') or 
+        request.path.startswith('/vote/') or
+        request.path == '/gate'):
         return
     
     if not check_site_password():
@@ -144,7 +147,11 @@ def gate():
 
 @app.route('/')
 def index():
-    """Serve the main voting page."""
+    """Serve the main voting page (or closed page if homepage is closed)."""
+    # Check if homepage is closed
+    if db.get_setting('homepage_closed', 'false') == 'true':
+        return render_template('closed.html')
+    
     branding = {
         'title': db.get_setting('site_title', 'Song Voter'),
         'description': db.get_setting('site_description', 'Vote on your favorite song versions'),
@@ -222,6 +229,59 @@ def vote_track(base_name):
         return redirect(url_for('index'))
     return render_template('index.html', direct_track=base_name)
 
+
+# ============ Vote Block Routes ============
+
+@app.route('/vote/block/<slug>')
+def vote_block(slug):
+    """Vote block entry point."""
+    block = db.get_vote_block_by_slug(slug)
+    if not block:
+        flash('Vote block not found', 'error')
+        return redirect(url_for('index'))
+    
+    # Check if expired
+    if db.is_block_expired(block):
+        return render_template('block_expired.html', block=block)
+    
+    # Check if password protected
+    if block.get('password_hash') and not session.get(f'block_access_{block["id"]}'):
+        return redirect(url_for('vote_block_auth', slug=slug))
+    
+    # Get block songs
+    songs = db.get_vote_block_songs(block['id'])
+    if not songs:
+        flash('This vote block has no songs', 'error')
+        return redirect(url_for('index'))
+    
+    return render_template('block.html', block=block, songs=songs)
+
+
+@app.route('/vote/block/<slug>/auth', methods=['GET', 'POST'])
+def vote_block_auth(slug):
+    """Password gate for protected blocks."""
+    block = db.get_vote_block_by_slug(slug)
+    if not block:
+        flash('Vote block not found', 'error')
+        return redirect(url_for('index'))
+    
+    # If no password required, redirect to block
+    if not block.get('password_hash'):
+        return redirect(url_for('vote_block', slug=slug))
+    
+    # Check if expired
+    if db.is_block_expired(block):
+        return render_template('block_expired.html', block=block)
+    
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if db.verify_block_password(block, password):
+            session[f'block_access_{block["id"]}'] = True
+            return redirect(url_for('vote_block', slug=slug))
+        error = 'Incorrect password'
+    
+    return render_template('block_auth.html', block=block, error=error)
 
 # ============ API Routes ============
 
@@ -319,8 +379,33 @@ def vote(song_id):
         if not song:
             return jsonify({'error': 'Song not found'}), 404
         
-        # Check voting time window (admin bypass)
-        if not session.get('admin'):
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+        
+        thumbs_up = data.get('thumbs_up')
+        rating = data.get('rating')
+        block_id = data.get('block_id')
+        
+        if thumbs_up is None and rating is None:
+            return jsonify({'error': 'Must provide thumbs_up or rating'}), 400
+        
+        if rating is not None and (rating < 1 or rating > 10):
+            return jsonify({'error': 'Rating must be between 1 and 10'}), 400
+        
+        # Handle block-specific voting
+        block = None
+        if block_id:
+            block = db.get_vote_block_by_id(block_id)
+            if not block:
+                return jsonify({'error': 'Vote block not found'}), 404
+            
+            # Check if block is expired
+            if db.is_block_expired(block):
+                return jsonify({'error': 'This vote block has expired'}), 403
+        
+        # Check voting time window (admin bypass, skip for block voting)
+        if not session.get('admin') and not block_id:
             from datetime import datetime
             now = datetime.now()
             
@@ -343,27 +428,31 @@ def vote(song_id):
                 except ValueError:
                     pass
         
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
-            
-        thumbs_up = data.get('thumbs_up')
-        rating = data.get('rating')
-        
-        if thumbs_up is None and rating is None:
-            return jsonify({'error': 'Must provide thumbs_up or rating'}), 400
-        
-        if rating is not None and (rating < 1 or rating > 10):
-            return jsonify({'error': 'Rating must be between 1 and 10'}), 400
-        
         # Check voting restrictions (admin bypass)
         voter_id = None
         if not session.get('admin'):
-            voter_id = db.get_voter_id(request)
-            if voter_id and db.has_voted(song_id, voter_id):
+            # Determine which voting restriction to use
+            # Block-specific restriction takes precedence if set
+            voting_restriction = 'none'
+            if block and block.get('voting_restriction'):
+                voting_restriction = block['voting_restriction']
+            else:
+                voting_restriction = db.get_setting('voting_restriction', 'none')
+            
+            # Only get voter_id if restriction is set
+            if voting_restriction != 'none':
+                voter_id = db.get_voter_id(request)
+            
+            # Check one-time-use block restriction (voter can only vote once per block)
+            if block and block.get('one_time_use') and voter_id:
+                if db.has_voted_in_block(voter_id, block_id):
+                    return jsonify({'error': 'You have already voted in this block'}), 403
+            
+            # Check per-song voting restriction
+            if voter_id and db.has_voted(song_id, voter_id, block_id):
                 return jsonify({'error': 'You have already voted on this song'}), 403
         
-        db.add_vote(song_id, thumbs_up, rating, voter_id)
+        db.add_vote(song_id, thumbs_up, rating, voter_id, block_id)
         stats = db.get_song_stats(song_id)
         
         return jsonify({'success': True, 'stats': stats})
@@ -524,7 +613,7 @@ def admin_update_settings():
         'site_password', 'voting_restriction', 'results_visibility',
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
         'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
-        'accent_color', 'visualizer_mode', 'visualizer_color'
+        'accent_color', 'visualizer_mode', 'visualizer_color', 'homepage_closed'
     ]
     
     for key, value in data.items():
@@ -708,6 +797,83 @@ def admin_delete_admin(admin_id):
     if db.delete_admin(admin_id):
         return jsonify({'success': True})
     return jsonify({'error': 'Admin not found'}), 404
+
+
+# ============ Vote Block Admin Routes ============
+
+@app.route('/admin/blocks')
+@admin_required
+def admin_blocks():
+    """Vote blocks management page."""
+    # Determine if current admin is owner (first admin)
+    admin_info = session.get('admin', {})
+    admin_id = admin_info.get('id')
+    first_admin = db.get_first_admin()
+    is_owner = first_admin and first_admin.get('id') == admin_id
+    
+    blocks = db.get_all_vote_blocks(admin_id=admin_id, is_owner=is_owner)
+    songs = db.get_all_songs()
+    return render_template('admin/blocks.html', blocks=blocks, songs=songs, is_owner=is_owner)
+
+
+
+@app.route('/admin/blocks', methods=['POST'])
+@admin_required
+def admin_create_block():
+    """Create a new vote block."""
+    data = request.get_json()
+    
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    
+    song_ids = data.get('song_ids', [])
+    if not song_ids:
+        return jsonify({'error': 'Select at least one song'}), 400
+    
+    password = data.get('password', '').strip() or None
+    expires_at = data.get('expires_at', '').strip() or None
+    
+    created_by = session.get('admin', {}).get('id')
+    
+    try:
+        result = db.create_vote_block(name, song_ids, password, expires_at, created_by)
+        return jsonify({'success': True, 'slug': result['slug'], 'id': result['id']})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/blocks/<int:block_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_block(block_id):
+    """Delete a vote block."""
+    if db.delete_vote_block(block_id):
+        return jsonify({'success': True})
+    return jsonify({'error': 'Vote block not found'}), 404
+
+
+@app.route('/admin/blocks/<int:block_id>', methods=['GET'])
+@admin_required
+def admin_get_block(block_id):
+    """Get vote block details."""
+    block = db.get_vote_block_by_id(block_id)
+    if not block:
+        return jsonify({'error': 'Vote block not found'}), 404
+    
+    songs = db.get_vote_block_songs(block_id)
+    return jsonify({'block': block, 'songs': songs})
+
+
+@app.route('/admin/blocks/<int:block_id>/results', methods=['GET'])
+@admin_required
+def admin_block_results(block_id):
+    """Get vote results for a specific block."""
+    block = db.get_vote_block_by_id(block_id)
+    if not block:
+        return jsonify({'error': 'Vote block not found'}), 404
+    
+    results = db.get_block_results(block_id)
+    return jsonify({'block': block, 'results': results})
 
 
 # Initialize database on module import (works with gunicorn)
