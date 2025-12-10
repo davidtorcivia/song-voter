@@ -12,9 +12,11 @@
     <meta property="og:title" content="{{ block.name }} - {{ branding.title or 'Song Voter' }}">
     <meta property="og:description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
     {% if branding.url %}
-    <meta property="og:url" content="{{ branding.url }}/b/{{ block.slug }}">{% endif %}
+    <meta property="og:url" content="{{ branding.url }}/vote/block/{{ block.slug }}">{% endif %}
     {% if branding.og_image %}
-    <meta property="og:image" content="{{ branding.og_image }}">{% endif %}
+    <meta property="og:image"
+        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% elif branding.url %}{{ branding.url }}{{ branding.og_image }}{% else %}{{ branding.og_image }}{% endif %}">
+    {% endif %}
     <meta name="twitter:card" content="summary_large_image">
 
     <!-- Favicon -->
@@ -27,16 +29,78 @@
     <div class="container">
         <h1 id="pageTitle">{{ block.name }}</h1>
 
-        <!-- Setup Section (immediate start for blocks) -->
+        <!-- Setup Section - Redesigned intro -->
         <div id="setupSection" class="card setup-section">
             <div id="loadingIndicator" class="loading" style="display: none;">Loading songs</div>
 
-            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;">
-                {{ songs|length }} song{% if songs|length != 1 %}s{% endif %} to vote on
-            </p>
+            <!-- Song count badge -->
+            <div style="text-align: center; margin-bottom: 24px;">
+                <span
+                    style="display: inline-block; padding: 8px 20px; background: var(--accent-glow); border: 1px solid var(--border); border-radius: 20px; font-size: 0.9rem; color: var(--accent-warm);">
+                    {{ songs|length }} song{% if songs|length != 1 %}s{% endif %} to vote on
+                </span>
+            </div>
 
-            <button id="startBtn" class="btn btn-success" style="width: 100%;">
-                Begin ▶
+            <!-- Instructions -->
+            <div style="margin-bottom: 28px;">
+                <h3
+                    style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">
+                    How it works</h3>
+
+                <div style="display: grid; gap: 16px; max-width: 380px; margin: 0 auto;">
+                    <!-- Step 1 -->
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <div
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--positive-muted); border-radius: 50%; flex-shrink: 0;">
+                            <span style="color: var(--positive); font-size: 1.1rem;">△</span>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
+                                Keep or Pass</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
+                                Tap <strong style="color: var(--positive);">Keep</strong> if you want this version on
+                                the album, <strong style="color: var(--danger);">Pass</strong> if not
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <div
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--accent-glow); border-radius: 50%; flex-shrink: 0;">
+                            <span style="color: var(--accent-warm); font-size: 0.9rem;">5</span>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
+                                Rate 1-10</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
+                                Use the slider to rate how much you like this version
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <div
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 50%; flex-shrink: 0;">
+                            <span style="color: var(--text-primary); font-size: 0.85rem;">→</span>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
+                                Submit & Next</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
+                                Your vote is recorded and the next song plays automatically
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="startBtn" class="btn btn-success" style="width: 100%; padding: 16px 24px; font-size: 1rem;">
+                Start Voting ▶
             </button>
         </div>
 
@@ -123,6 +187,10 @@
         window.INITIAL_BASE_NAMES = [];
         window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
         window.VISUALIZER_COLOR = '{{ branding.visualizer_color or "" }}';
+
+        // Block-specific settings (null = use global)
+        window.BLOCK_DISABLE_SKIP = {% if block.disable_skip is not none %}{ { block.disable_skip } } {% else %} null{% endif %};
+        window.BLOCK_MIN_LISTEN_TIME = {% if block.min_listen_time is not none %}{ { block.min_listen_time } } {% else %} null{% endif %};
     </script>
     <script src="/static/app.js"></script>
 </body>
