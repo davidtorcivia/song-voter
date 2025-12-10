@@ -15,7 +15,7 @@
     <meta property="og:url" content="{{ branding.url }}">{% endif %}
     {% if branding.og_image %}
     <meta property="og:image"
-        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% elif branding.url %}{{ branding.url }}{{ branding.og_image }}{% else %}{{ branding.og_image }}{% endif %}">
+        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% else %}{{ request.host_url.rstrip('/') }}{{ branding.og_image }}{% endif %}">
     {% endif %}
     <meta name="twitter:card" content="summary_large_image">
 

@@ -15,8 +15,9 @@
     <meta property="og:url" content="{{ branding.url }}/vote/block/{{ block.slug }}">{% endif %}
     {% if branding.og_image %}
     <meta property="og:image"
-        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% elif branding.url %}{{ branding.url }}{{ branding.og_image }}{% else %}{{ branding.og_image }}{% endif %}">
+        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% else %}{{ request.host_url.rstrip('/') }}{{ branding.og_image }}{% endif %}">
     {% endif %}
+
     <meta name="twitter:card" content="summary_large_image">
 
     <!-- Favicon -->
@@ -59,9 +60,10 @@
                                 style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
                                 Keep or Pass</div>
                             <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
-                                Tap <strong style="color: var(--positive);">Keep</strong> if you want this version on
-                                the album, <strong style="color: var(--danger);">Pass</strong> if not
+                                Tap <strong style="color: var(--positive);">Keep</strong> if you'd like to hear this
+                                version again, <strong style="color: var(--danger);">Pass</strong> if not
                             </div>
+
                         </div>
                     </div>
 
