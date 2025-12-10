@@ -360,7 +360,11 @@ class SongVoter {
                 else if (max === g) h = ((b - r) / d + 2) / 6;
                 else h = ((r - g) / d + 4) / 6;
             }
-            const accentHue = Math.round(h * 360);
+            const rawHue = Math.round(h * 360);
+
+            // Better default colors when accent is white/disabled
+            const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
+            const accentHue = isDefaultAccent ? 280 : rawHue; // Default to vibrant purple
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
@@ -374,24 +378,27 @@ class SongVoter {
                     const barHeight = value * height * 0.9;
                     const x = i * (barWidth + gap);
 
+                    // Spread hue across spectrum for richer look
+                    const hueSpread = isDefaultAccent ? 80 : 40;
+                    const hueOffset = (i / barCount) * hueSpread - (hueSpread / 2);
+                    const barHue = accentHue + hueOffset;
+
                     if (mode === 'both') {
                         // In both mode: bars are a subtle glowing backdrop
-                        const hueShift = (i / barCount) * 40 - 20;
-                        const sat = 20 + value * 30;
-                        const light = 15 + value * 25;
+                        const sat = 30 + value * 40;
+                        const light = 20 + value * 30;
 
                         // Create vertical gradient for each bar
                         const barGrad = this.visCtx.createLinearGradient(0, height, 0, height - barHeight);
-                        barGrad.addColorStop(0, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.5)`);
-                        barGrad.addColorStop(1, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.1)`);
+                        barGrad.addColorStop(0, `hsla(${barHue}, ${sat}%, ${light}%, 0.6)`);
+                        barGrad.addColorStop(1, `hsla(${barHue}, ${sat}%, ${light}%, 0.15)`);
 
                         this.visCtx.fillStyle = barGrad;
                     } else {
                         // Bars-only mode: full vibrant bars
-                        const hueShift = (i / barCount) * 30 - 15;
-                        const sat = 40 + value * 40;
-                        const light = 30 + value * 40;
-                        this.visCtx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.8)`;
+                        const sat = 50 + value * 40;
+                        const light = 35 + value * 40;
+                        this.visCtx.fillStyle = `hsla(${barHue}, ${sat}%, ${light}%, 0.85)`;
                     }
                     this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
                 }
@@ -420,10 +427,9 @@ class SongVoter {
                 trailHistory.unshift(currentPoints);
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                // Better default colors when accent is disabled/white
-                const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-                const baseHue = isDefaultAccent ? 260 : accentHue; // Default to purple
-                const compHue = isDefaultAccent ? 220 : (accentHue + 180) % 360; // Default to blue
+                // Clean up: use isDefaultAccent from bars scope (or redefine if wave-only)
+                const baseHue = isDefaultAccent ? 270 : accentHue; // Default to rich purple
+                const compHue = isDefaultAccent ? 200 : (accentHue + 180) % 360; // Default to cyan-blue
 
                 // Draw trails (oldest to newest, fading)
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
@@ -439,17 +445,23 @@ class SongVoter {
                     }
                 }
 
-                // DYNAMIC REACTIVE GRADIENT - shifts based on amplitude
-                const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
-                const hueShift = avgAmplitude * 30; // 0-30 hue shift based on loudness
-                const satBoost = 60 + avgAmplitude * 30; // 60-90% saturation
-                const lightBoost = 55 + avgAmplitude * 20; // 55-75% lightness
+                // TIME-BASED OSCILLATION - gradient slides back and forth
+                const time = Date.now() / 1000; // Seconds
+                const gradientPhase = Math.sin(time * 0.5) * 0.3; // -0.3 to 0.3 oscillation
+                const gradientStart = Math.max(0, gradientPhase);
+                const gradientEnd = Math.min(1, 1 + gradientPhase);
 
-                // Dynamic gradient that pulses with the music
+                // DYNAMIC REACTIVE GRADIENT with time-based movement
+                const gradient = this.visCtx.createLinearGradient(width * gradientStart, 0, width * gradientEnd, 0);
+                const hueShift = avgAmplitude * 40 + Math.sin(time * 2) * 15; // More dynamic hue
+                const satBoost = 65 + avgAmplitude * 25; // 65-90% saturation
+                const lightBoost = 50 + avgAmplitude * 25; // 50-75% lightness
+
+                // Dynamic gradient that pulses and flows with the music
                 gradient.addColorStop(0, `hsl(${baseHue - hueShift}, ${satBoost}%, ${lightBoost}%)`);
-                gradient.addColorStop(0.3, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
-                gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.7 + avgAmplitude * 0.3})`); // White intensity varies
-                gradient.addColorStop(0.7, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
+                gradient.addColorStop(0.25, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 15}%)`);
+                gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.6 + avgAmplitude * 0.4})`); // White flash on beats
+                gradient.addColorStop(0.75, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
                 gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
 
                 // Draw main oscilloscope line with subtle glow (reduced for luxe feel)
@@ -636,9 +648,24 @@ class SongVoter {
     }
 
     playNext() {
-        // Animate out the current song
+        // Haptic feedback for tactile response (mobile)
+        if (navigator.vibrate) {
+            navigator.vibrate(15);
+        }
+
+        // Animate out the current song with more visual weight
+        const card = document.querySelector('.card');
         if (this.songName) {
-            this.songName.style.animation = 'slideOut 0.2s ease-in forwards';
+            this.songName.style.animation = 'slideOut 0.25s ease-in forwards';
+        }
+        if (card) {
+            card.style.transition = 'transform 0.25s ease-in, opacity 0.25s ease-in';
+            card.style.transform = 'scale(0.95) translateX(-20px)';
+            card.style.opacity = '0.7';
+        }
+        if (this.visualizer) {
+            this.visualizer.style.transition = 'opacity 0.15s ease-out';
+            this.visualizer.style.opacity = '0.3';
         }
 
         setTimeout(() => {
@@ -654,11 +681,22 @@ class SongVoter {
 
             this.loadSong(this.queue[this.currentIndex]);
 
-            // Animate in the new song
+            // Animate in the new song with more weight
             if (this.songName) {
-                this.songName.style.animation = 'slideIn 0.3s ease-out forwards';
+                this.songName.style.animation = 'slideIn 0.35s ease-out forwards';
             }
-        }, 200);
+            if (card) {
+                card.style.transform = 'scale(1.02)';
+                card.style.opacity = '1';
+                setTimeout(() => {
+                    card.style.transition = 'transform 0.2s ease-out';
+                    card.style.transform = 'scale(1)';
+                }, 100);
+            }
+            if (this.visualizer) {
+                this.visualizer.style.opacity = '1';
+            }
+        }, 250);
     }
 
     loadSong(song) {

@@ -218,9 +218,17 @@
                     this.waveformCanvas.addEventListener('click', (e) => this.seekFromEvent(e));
                 }
 
+
                 this.volumeSlider.addEventListener('input', () => {
-                    this.audio.volume = this.volumeSlider.value;
+                    // Use gainNode if available (for decoupled visualization)
+                    const volume = parseFloat(this.volumeSlider.value);
+                    if (this.gainNode) {
+                        this.gainNode.gain.value = volume;
+                    } else {
+                        this.audio.volume = volume;
+                    }
                 });
+
 
                 if (this.castBtn) {
                     this.castBtn.addEventListener('click', () => this.promptCast());
@@ -466,7 +474,7 @@
 
                 // Create gain node for volume control AFTER analyser
                 this.gainNode = this.audioContext.createGain();
-                this.gainNode.gain.value = this.volume ? this.volume.value / 100 : 1;
+                this.gainNode.gain.value = this.volumeSlider ? parseFloat(this.volumeSlider.value) : 1;
 
                 const source = this.audioContext.createMediaElementSource(this.audio);
                 // Route: source -> analyser -> gainNode -> destination
@@ -605,8 +613,8 @@
 
                         // Better default colors when accent is disabled/white
                         const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-                        const baseHue = isDefaultAccent ? 260 : accentHue;
-                        const compHue = isDefaultAccent ? 220 : (accentHue + 180) % 360;
+                        const baseHue = isDefaultAccent ? 270 : accentHue; // Rich purple
+                        const compHue = isDefaultAccent ? 200 : (accentHue + 180) % 360; // Cyan-blue
 
                         // Draw trails (fading)
                         for (let t = trailHistory.length - 1; t >= 0; t--) {
@@ -622,16 +630,22 @@
                             }
                         }
 
-                        // DYNAMIC REACTIVE GRADIENT
-                        const gradient = ctx.createLinearGradient(0, 0, width, 0);
-                        const hueShift = avgAmplitude * 30;
-                        const satBoost = 60 + avgAmplitude * 30;
-                        const lightBoost = 55 + avgAmplitude * 20;
+                        // TIME-BASED OSCILLATION - gradient slides back and forth
+                        const time = Date.now() / 1000;
+                        const gradientPhase = Math.sin(time * 0.5) * 0.3;
+                        const gradientStart = Math.max(0, gradientPhase);
+                        const gradientEnd = Math.min(1, 1 + gradientPhase);
+
+                        // DYNAMIC REACTIVE GRADIENT with time-based movement
+                        const gradient = ctx.createLinearGradient(width * gradientStart, 0, width * gradientEnd, 0);
+                        const hueShift = avgAmplitude * 40 + Math.sin(time * 2) * 15;
+                        const satBoost = 65 + avgAmplitude * 25;
+                        const lightBoost = 50 + avgAmplitude * 25;
 
                         gradient.addColorStop(0, `hsl(${baseHue - hueShift}, ${satBoost}%, ${lightBoost}%)`);
-                        gradient.addColorStop(0.3, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
-                        gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.7 + avgAmplitude * 0.3})`);
-                        gradient.addColorStop(0.7, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
+                        gradient.addColorStop(0.25, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 15}%)`);
+                        gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.6 + avgAmplitude * 0.4})`);
+                        gradient.addColorStop(0.75, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
                         gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
 
                         // Draw main oscilloscope line with subtle glow
