@@ -98,6 +98,13 @@ def init_db():
             (key, value)
         )
     
+    # Migration: Add voter_id column to votes table if it doesn't exist  
+    cursor.execute("PRAGMA table_info(votes)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'voter_id' not in columns:
+        cursor.execute("ALTER TABLE votes ADD COLUMN voter_id TEXT")
+        print("Migration: Added voter_id column to votes table")
+    
     # Create initial admin from environment if specified
     admin_user = os.environ.get('ADMIN_USER')
     admin_pass = os.environ.get('ADMIN_PASS')

@@ -113,6 +113,8 @@ def inject_branding():
             'url': db.get_setting('site_url', ''),
             'og_image': db.get_setting('og_image', ''),
             'favicon': db.get_setting('favicon', '/static/favicon.ico'),
+            'accent_color': db.get_setting('accent_color', '#ffffff'),
+            'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
         }
     }
 

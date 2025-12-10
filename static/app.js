@@ -589,12 +589,18 @@ class SongVoter {
         this.audio.play().catch(err => console.log('Autoplay blocked:', err));
     }
 
-    togglePlay() {
+    async togglePlay() {
         if (this.isPlaying) {
             this.audio.pause();
         } else {
-            if (this.audioContext && this.audioContext.state === 'suspended') {
-                this.audioContext.resume();
+            // Ensure AudioContext is running BEFORE playing audio
+            if (this.audioContext && this.audioContext.state !== 'running') {
+                try {
+                    await this.audioContext.resume();
+                    console.log('AudioContext resumed before play');
+                } catch (err) {
+                    console.log('AudioContext resume failed:', err);
+                }
             }
             this.audio.play();
         }
