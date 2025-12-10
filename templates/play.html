@@ -194,6 +194,9 @@
                 this.audioContext = null;
                 this.analyser = null;
 
+                // Cache accent color
+                this.accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#a78bfa';
+
                 this.init(songId);
             }
 
@@ -370,7 +373,7 @@
                 const progressX = progress * width;
 
                 // Get accent color
-                const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#a78bfa';
+                const accentColor = this.accentColor || '#a78bfa';
 
                 // 1. Draw Unplayed Bars
                 this.waveCtx.shadowBlur = 0;

@@ -89,6 +89,9 @@ class SongVoter {
 
         // Feedback
         this.feedback = document.getElementById('feedback');
+
+        // Cache accent color
+        this.accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
     }
 
     initEventListeners() {
@@ -649,8 +652,8 @@ class SongVoter {
         const progress = this.audio.currentTime / this.audio.duration || 0;
         const progressX = progress * width;
 
-        // Get accent color from CSS variable or default to white
-        const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
+        // Use cached accent color
+        const accentColor = this.accentColor || '#ffffff';
 
         // 1. Draw Unplayed Bars (Base Layer)
         this.waveCtx.shadowBlur = 0;
