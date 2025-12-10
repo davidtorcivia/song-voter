@@ -974,26 +974,45 @@ label {
 
 /* Results Legend */
 .results-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, auto));
+    gap: 8px 20px;
     justify-content: center;
+    align-items: center;
     font-size: 0.75rem;
     color: var(--text-secondary);
-    padding: 12px 16px;
+    padding: 10px 16px;
     margin-top: 12px;
     background: var(--bg-secondary);
     border-radius: var(--radius);
 }
 
-.legend-sep {
-    opacity: 0.3;
+.results-legend span {
+    white-space: nowrap;
 }
 
-/* Best version indicator */
+.legend-sep {
+    opacity: 0.3;
+    display: none;
+    /* Hide separator, using grid layout instead */
+}
+
+/* Hide legend on mobile - too cluttered */
+@media (max-width: 600px) {
+    .results-legend {
+        display: none;
+    }
+}
+
+/* Best version indicator - subtle warm tone */
 .best-version {
-    color: #22d3ee;
+    color: #e5c07b;
     margin-right: 4px;
+}
+
+/* Controversial - no animation for performance */
+.controversial {
+    animation: none;
 }
 
 /* Help Page */
