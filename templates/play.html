@@ -27,11 +27,12 @@
 
         .play-page .progress-container {
             position: relative;
-            height: 6px;
-            background: var(--bg-elevated);
-            border-radius: 3px;
+            height: 60px;
+            background: transparent;
+            border-radius: 8px;
             cursor: pointer;
             margin-bottom: 12px;
+            overflow: hidden;
         }
 
         .play-page .progress-fill {
@@ -611,10 +612,10 @@
                         trailHistory.unshift(currentPoints);
                         if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                        // Better default colors when accent is disabled/white
+                        // Esoteric oscilloscope colors: jade → rose-gold
                         const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-                        const baseHue = isDefaultAccent ? 270 : accentHue; // Rich purple
-                        const compHue = isDefaultAccent ? 200 : (accentHue + 180) % 360; // Cyan-blue
+                        const baseHue = isDefaultAccent ? 165 : accentHue; // Deep jade
+                        const compHue = isDefaultAccent ? 340 : (accentHue + 180) % 360; // Rose-gold
 
                         // Draw trails (fading)
                         for (let t = trailHistory.length - 1; t >= 0; t--) {

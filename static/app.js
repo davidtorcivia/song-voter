@@ -362,9 +362,9 @@ class SongVoter {
             }
             const rawHue = Math.round(h * 360);
 
-            // Better default colors when accent is white/disabled
+            // Better default colors: esoteric palette (jade → rose-gold → violet)
             const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-            const accentHue = isDefaultAccent ? 280 : rawHue; // Default to vibrant purple
+            const accentHue = isDefaultAccent ? 165 : rawHue; // Default to deep jade/teal
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
@@ -378,10 +378,10 @@ class SongVoter {
                     const barHeight = value * height * 0.9;
                     const x = i * (barWidth + gap);
 
-                    // Spread hue across spectrum for richer look
-                    const hueSpread = isDefaultAccent ? 80 : 40;
-                    const hueOffset = (i / barCount) * hueSpread - (hueSpread / 2);
-                    const barHue = accentHue + hueOffset;
+                    // Esoteric spread: jade → rose-gold → violet
+                    const hueSpread = isDefaultAccent ? 200 : 50;
+                    const hueOffset = (i / barCount) * hueSpread - (hueSpread / 3);
+                    const barHue = (accentHue + hueOffset + 360) % 360;
 
                     if (mode === 'both') {
                         // In both mode: bars are a subtle glowing backdrop
@@ -427,9 +427,9 @@ class SongVoter {
                 trailHistory.unshift(currentPoints);
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                // Clean up: use isDefaultAccent from bars scope (or redefine if wave-only)
-                const baseHue = isDefaultAccent ? 270 : accentHue; // Default to rich purple
-                const compHue = isDefaultAccent ? 200 : (accentHue + 180) % 360; // Default to cyan-blue
+                // Esoteric oscilloscope colors: jade → rose-gold complementary
+                const baseHue = isDefaultAccent ? 165 : accentHue; // Match bars default jade
+                const compHue = isDefaultAccent ? 340 : (accentHue + 180) % 360; // Rose-gold complement
 
                 // Draw trails (oldest to newest, fading)
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
@@ -725,27 +725,29 @@ class SongVoter {
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Fetch waveform
+        // Fade out and clear waveform for smooth transition
+        if (this.waveformCanvas) {
+            this.waveformCanvas.style.transition = 'opacity 0.2s ease-out';
+            this.waveformCanvas.style.opacity = '0.3';
+        }
         this.waveData = null;
-        fetch(`/api/songs/${song.id}/waveform`)
-            .then(res => res.json())
-            .then(data => {
-                this.waveData = data;
-                this.drawWaveform();
-            })
-            .catch(() => this.waveData = null);
 
         // Load audio
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Fetch waveform
-        this.waveData = null;
+        // Fetch waveform with fade-in
         fetch(`/api/songs/${song.id}/waveform`)
             .then(res => res.json())
             .then(data => {
                 this.waveData = data;
                 this.drawWaveform();
+                // Smooth fade in
+                if (this.waveformCanvas) {
+                    setTimeout(() => {
+                        this.waveformCanvas.style.opacity = '1';
+                    }, 50);
+                }
             })
             .catch(() => this.waveData = null);
 
