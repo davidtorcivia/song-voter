@@ -831,8 +831,11 @@ def admin_create_block():
     if not song_ids:
         return jsonify({'error': 'Select at least one song'}), 400
     
-    password = data.get('password', '').strip() or None
-    expires_at = data.get('expires_at', '').strip() or None
+    password = data.get('password')
+    password = password.strip() if password else None
+    expires_at = data.get('expires_at')
+    expires_at = expires_at.strip() if expires_at else None
+
     
     created_by = session.get('admin', {}).get('id')
     

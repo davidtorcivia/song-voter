@@ -331,9 +331,14 @@
                 <input type="datetime-local" id="blockExpires">
             </div>
 
+            <!-- Error message area -->
+            <div id="createError"
+                style="display: none; color: var(--danger); font-size: 0.85rem; margin-top: 12px; padding: 8px 12px; background: var(--danger-muted); border-radius: var(--radius);">
+            </div>
+
             <div class="modal-actions" style="margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="createBlock()">Create</button>
+                <button class="btn btn-primary" id="createBtn" onclick="createBlock()">Create</button>
             </div>
         </div>
     </div>
@@ -449,11 +454,26 @@
             checkboxes.forEach(cb => cb.checked = !allChecked);
         }
 
+        // Show error in create modal
+        function showCreateError(message) {
+            const errorEl = document.getElementById('createError');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function clearCreateError() {
+            const errorEl = document.getElementById('createError');
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+        }
+
         // Create block
         async function createBlock() {
+            clearCreateError();
+
             const name = document.getElementById('blockName').value.trim();
             if (!name) {
-                showAlert('Please enter a block name');
+                showCreateError('Please enter a block name');
                 return;
             }
 
@@ -461,12 +481,17 @@
                 .map(cb => parseInt(cb.value));
 
             if (songIds.length === 0) {
-                showAlert('Please select at least one song');
+                showCreateError('Please select at least one song');
                 return;
             }
 
             const password = document.getElementById('blockPassword').value.trim();
             const expiresAt = document.getElementById('blockExpires').value;
+
+            // Disable button while creating
+            const createBtn = document.getElementById('createBtn');
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
 
             try {
                 const res = await fetch('/admin/blocks', {
@@ -484,11 +509,14 @@
                 if (res.ok) {
                     location.reload();
                 } else {
-                    showAlert(data.error || 'Failed to create block');
+                    showCreateError(data.error || 'Failed to create block');
                 }
             } catch (err) {
-                showAlert('Error creating block');
+                showCreateError('Error creating block. Please try again.');
             }
+
+            createBtn.disabled = false;
+            createBtn.textContent = 'Create';
         }
 
         // Copy link
