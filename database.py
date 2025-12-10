@@ -674,6 +674,52 @@ def delete_vote_block(block_id):
     return deleted
 
 
+def update_vote_block(block_id, name=None, password=None, clear_password=False,
+                       expires_at=None, clear_expires=False, 
+                       one_time_use=None, voting_restriction=None):
+    """Update a vote block's settings."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    updates = []
+    params = []
+    
+    if name is not None:
+        updates.append('name = ?')
+        params.append(name)
+    
+    if clear_password:
+        updates.append('password_hash = NULL')
+    elif password is not None:
+        updates.append('password_hash = ?')
+        params.append(generate_password_hash(password))
+    
+    if clear_expires:
+        updates.append('expires_at = NULL')
+    elif expires_at is not None:
+        updates.append('expires_at = ?')
+        params.append(expires_at)
+    
+    if one_time_use is not None:
+        updates.append('one_time_use = ?')
+        params.append(1 if one_time_use else 0)
+    
+    if voting_restriction is not None:
+        updates.append('voting_restriction = ?')
+        params.append(voting_restriction)
+    
+    if not updates:
+        conn.close()
+        return False
+    
+    params.append(block_id)
+    cursor.execute(f'UPDATE vote_blocks SET {", ".join(updates)} WHERE id = ?', params)
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
 def verify_block_password(block, password):
     """Verify a vote block password."""
     if not block or not block.get('password_hash'):
@@ -712,6 +758,7 @@ def get_block_results(block_id):
     conn = get_db()
     cursor = conn.cursor()
     
+    # Match the same query structure as get_all_results for consistency
     cursor.execute('''
         SELECT 
             s.id,
@@ -720,7 +767,8 @@ def get_block_results(block_id):
             COUNT(v.id) as vote_count,
             AVG(v.rating) as avg_rating,
             SUM(CASE WHEN v.thumbs_up = 1 THEN 1 ELSE 0 END) as thumbs_up_count,
-            SUM(CASE WHEN v.thumbs_up = 0 THEN 1 ELSE 0 END) as thumbs_down_count
+            SUM(CASE WHEN v.thumbs_up = 0 THEN 1 ELSE 0 END) as thumbs_down_count,
+            AVG(v.rating * v.rating) as avg_rating_squared
         FROM songs s
         JOIN vote_block_songs vbs ON s.id = vbs.song_id
         LEFT JOIN votes v ON s.id = v.song_id AND v.block_id = ?
@@ -734,13 +782,40 @@ def get_block_results(block_id):
         total_thumbs = (row['thumbs_up_count'] or 0) + (row['thumbs_down_count'] or 0)
         thumbs_up_pct = (row['thumbs_up_count'] / total_thumbs * 100) if total_thumbs > 0 else None
         
+        # Calculate rating variance and stdev (same as get_all_results)
+        avg_rating = row['avg_rating']
+        avg_rating_sq = row['avg_rating_squared']
+        rating_stdev = None
+        agreement_score = None
+        is_controversial = False
+        
+        if avg_rating is not None and avg_rating_sq is not None and row['vote_count'] >= 2:
+            # Variance = E[X²] - E[X]²
+            variance = avg_rating_sq - (avg_rating ** 2)
+            if variance > 0:
+                import math
+                rating_stdev = math.sqrt(variance)
+                # Agreement score: 1 - (stdev / max_possible_stdev)
+                # Max stdev for 1-10 scale is 4.5 (all votes at 1 and 10)
+                agreement_score = max(0, 1 - (rating_stdev / 4.5)) * 100
+                # Controversial: low agreement AND mixed thumbs
+                if agreement_score < 50 and thumbs_up_pct and 30 <= thumbs_up_pct <= 70:
+                    is_controversial = True
+            else:
+                # Perfect agreement (all same rating)
+                rating_stdev = 0
+                agreement_score = 100
+        
         results.append({
             'id': row['id'],
             'filename': row['filename'],
             'base_name': row['base_name'],
             'vote_count': row['vote_count'],
-            'avg_rating': round(row['avg_rating'], 2) if row['avg_rating'] else None,
+            'avg_rating': round(avg_rating, 2) if avg_rating else None,
             'thumbs_up_pct': round(thumbs_up_pct, 1) if thumbs_up_pct is not None else None,
+            'rating_stdev': round(rating_stdev, 2) if rating_stdev is not None else None,
+            'agreement_score': round(agreement_score, 0) if agreement_score is not None else None,
+            'is_controversial': is_controversial,
         })
     
     conn.close()

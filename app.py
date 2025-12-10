@@ -835,15 +835,19 @@ def admin_create_block():
     password = password.strip() if password else None
     expires_at = data.get('expires_at')
     expires_at = expires_at.strip() if expires_at else None
-
+    
+    one_time_use = data.get('one_time_use', False)
+    voting_restriction = data.get('voting_restriction', '')
     
     created_by = session.get('admin', {}).get('id')
     
     try:
-        result = db.create_vote_block(name, song_ids, password, expires_at, created_by)
+        result = db.create_vote_block(name, song_ids, password, expires_at, created_by,
+                                       one_time_use=one_time_use, voting_restriction=voting_restriction)
         return jsonify({'success': True, 'slug': result['slug'], 'id': result['id']})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 @app.route('/admin/blocks/<int:block_id>', methods=['DELETE'])
@@ -853,6 +857,42 @@ def admin_delete_block(block_id):
     if db.delete_vote_block(block_id):
         return jsonify({'success': True})
     return jsonify({'error': 'Vote block not found'}), 404
+
+
+@app.route('/admin/blocks/<int:block_id>', methods=['PUT'])
+@admin_required
+def admin_update_block(block_id):
+    """Update a vote block's settings."""
+    data = request.get_json()
+    
+    name = data.get('name')
+    name = name.strip() if name else None
+    
+    password = data.get('password')
+    password = password.strip() if password else None
+    clear_password = data.get('clear_password', False)
+    
+    expires_at = data.get('expires_at')
+    expires_at = expires_at.strip() if expires_at else None
+    clear_expires = data.get('clear_expires', False)
+    
+    one_time_use = data.get('one_time_use')
+    voting_restriction = data.get('voting_restriction')
+    
+    try:
+        db.update_vote_block(
+            block_id,
+            name=name,
+            password=password,
+            clear_password=clear_password,
+            expires_at=expires_at,
+            clear_expires=clear_expires,
+            one_time_use=one_time_use,
+            voting_restriction=voting_restriction
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/admin/blocks/<int:block_id>', methods=['GET'])

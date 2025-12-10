@@ -296,6 +296,73 @@
         </div>
     </div>
 
+    <!-- Edit Block Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <h3>Edit Vote Block</h3>
+            <input type="hidden" id="editBlockId">
+
+            <div class="form-group">
+                <label>Block Name</label>
+                <input type="text" id="editBlockName">
+            </div>
+
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="editBlockPassword"
+                    placeholder="Enter new password or leave empty to keep current">
+                <div style="margin-top: 6px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; letter-spacing: normal; font-size: 0.85rem;">
+                        <input type="checkbox" id="editClearPassword" style="width: 16px; height: 16px;">
+                        Remove password protection
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Expiration</label>
+                <input type="datetime-local" id="editBlockExpires">
+                <div style="margin-top: 6px;">
+                    <label
+                        style="display: flex; align-items: center; gap: 6px; cursor: pointer; text-transform: none; letter-spacing: normal; font-size: 0.85rem;">
+                        <input type="checkbox" id="editClearExpires" style="width: 16px; height: 16px;">
+                        Remove expiration
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Voting Restriction</label>
+                <select id="editVotingRestriction"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="">Use global setting</option>
+                    <option value="none">No restriction</option>
+                    <option value="ip">IP-based (one vote per IP)</option>
+                    <option value="cookie">Cookie-based (one vote per browser)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="editOneTimeUse"
+                    style="width: 18px; height: 18px; accent-color: var(--accent);">
+                <label for="editOneTimeUse"
+                    style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 0.9rem; color: var(--text-primary);">One-time
+                    use (voter can only vote once in this block)</label>
+            </div>
+
+            <!-- Error message area -->
+            <div id="editError"
+                style="display: none; color: var(--danger); font-size: 0.85rem; margin-top: 12px; padding: 8px 12px; background: var(--danger-muted); border-radius: var(--radius);">
+            </div>
+
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" id="editBtn" onclick="saveBlock()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Block Modal -->
     <div class="modal-overlay" id="createModal">
         <div class="modal-box">
@@ -331,6 +398,25 @@
                 <input type="datetime-local" id="blockExpires">
             </div>
 
+            <div class="form-group">
+                <label>Voting Restriction</label>
+                <select id="blockVotingRestriction"
+                    style="width: 100%; padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem;">
+                    <option value="">Use global setting</option>
+                    <option value="none">No restriction</option>
+                    <option value="ip">IP-based (one vote per IP)</option>
+                    <option value="cookie">Cookie-based (one vote per browser)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="blockOneTimeUse"
+                    style="width: 18px; height: 18px; accent-color: var(--accent);">
+                <label for="blockOneTimeUse"
+                    style="margin: 0; text-transform: none; letter-spacing: normal; font-size: 0.9rem; color: var(--text-primary);">One-time
+                    use (voter can only vote once in this block)</label>
+            </div>
+
             <!-- Error message area -->
             <div id="createError"
                 style="display: none; color: var(--danger); font-size: 0.85rem; margin-top: 12px; padding: 8px 12px; background: var(--danger-muted); border-radius: var(--radius);">
@@ -342,6 +428,7 @@
             </div>
         </div>
     </div>
+
 
     <div class="container admin-container">
         <div class="admin-header">
@@ -384,9 +471,11 @@
                             <button class="copy-btn" onclick="copyLink({{ block.id }})" title="Copy">Copy</button>
                         </div>
                         <button class="btn btn-secondary" onclick="viewResults({{ block.id }})">Results</button>
+                        <button class="btn btn-secondary" onclick="editBlock({{ block.id }})">Edit</button>
                         <button class="btn btn-danger"
                             onclick="deleteBlock({{ block.id }}, '{{ block.name }}')">Delete</button>
                     </div>
+
                 </div>
                 {% endfor %}
                 {% else %}
@@ -438,9 +527,13 @@
             document.getElementById('blockName').value = '';
             document.getElementById('blockPassword').value = '';
             document.getElementById('blockExpires').value = '';
+            document.getElementById('blockOneTimeUse').checked = false;
+            document.getElementById('blockVotingRestriction').value = '';
             document.querySelectorAll('#songSelector input[type="checkbox"]').forEach(cb => cb.checked = false);
+            clearCreateError();
             document.getElementById('createModal').classList.add('visible');
         }
+
 
         function closeCreateModal() {
             document.getElementById('createModal').classList.remove('visible');
@@ -486,6 +579,8 @@
 
             const password = document.getElementById('blockPassword').value.trim();
             const expiresAt = document.getElementById('blockExpires').value;
+            const oneTimeUse = document.getElementById('blockOneTimeUse').checked;
+            const votingRestriction = document.getElementById('blockVotingRestriction').value;
 
             // Disable button while creating
             const createBtn = document.getElementById('createBtn');
@@ -500,7 +595,9 @@
                         name,
                         song_ids: songIds,
                         password: password || null,
-                        expires_at: expiresAt || null
+                        expires_at: expiresAt || null,
+                        one_time_use: oneTimeUse,
+                        voting_restriction: votingRestriction
                     })
                 });
 
@@ -517,6 +614,7 @@
             createBtn.disabled = false;
             createBtn.textContent = 'Create';
         }
+
 
         // Copy link
         function copyLink(blockId) {
@@ -586,23 +684,36 @@
                 html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">Votes</th>';
                 html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">Avg</th>';
                 html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">+%</th>';
+                html += '<th style="text-align: center; padding: 8px 4px; border-bottom: 1px solid var(--border);">Agree</th>';
                 html += '</tr></thead>';
                 html += '<tbody>';
 
                 for (const r of data.results) {
                     const avgRating = r.avg_rating !== null ? r.avg_rating.toFixed(1) : '—';
                     const thumbsPct = r.thumbs_up_pct !== null ? `${r.thumbs_up_pct}%` : '—';
+                    const agreement = r.agreement_score !== null ? `${r.agreement_score}%` : '—';
+                    const controversial = r.is_controversial ? ' *' : '';
+
+                    // Color code agreement
+                    let agreeColor = 'var(--text-secondary)';
+                    if (r.agreement_score !== null) {
+                        if (r.agreement_score >= 70) agreeColor = 'var(--positive)';
+                        else if (r.agreement_score < 50) agreeColor = 'var(--danger)';
+                        else agreeColor = 'var(--accent)';
+                    }
 
                     html += '<tr>';
                     html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); color: var(--text-primary);">${escapeHtml(r.filename)}</td>`;
                     html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--text-secondary);">${r.vote_count}</td>`;
                     html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--accent);">${avgRating}</td>`;
                     html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: var(--positive);">${thumbsPct}</td>`;
+                    html += `<td style="padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; color: ${agreeColor};">${agreement}${controversial}</td>`;
                     html += '</tr>';
                 }
 
                 html += '</tbody></table>';
                 document.getElementById('resultsContent').innerHTML = html;
+
 
             } catch (err) {
                 document.getElementById('resultsContent').innerHTML = '<p style="color: var(--danger);">Error loading results</p>';
@@ -614,7 +725,115 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Edit modal functions
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('visible');
+        }
+
+        function showEditError(message) {
+            const errorEl = document.getElementById('editError');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function clearEditError() {
+            const errorEl = document.getElementById('editError');
+            errorEl.style.display = 'none';
+            errorEl.textContent = '';
+        }
+
+        async function editBlock(blockId) {
+            // Fetch block data first
+            try {
+                const res = await fetch(`/admin/blocks/${blockId}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showAlert(data.error || 'Failed to load block');
+                    return;
+                }
+
+                const block = data.block;
+
+                document.getElementById('editBlockId').value = blockId;
+                document.getElementById('editBlockName').value = block.name || '';
+                document.getElementById('editBlockPassword').value = '';
+                document.getElementById('editClearPassword').checked = false;
+
+                // Format expires_at for datetime-local input (remove seconds/timezone)
+                let expiresVal = '';
+                if (block.expires_at) {
+                    // Expect format like "2024-12-15 14:00:00" or ISO format
+                    const dt = block.expires_at.replace(' ', 'T').slice(0, 16);
+                    expiresVal = dt;
+                }
+                document.getElementById('editBlockExpires').value = expiresVal;
+                document.getElementById('editClearExpires').checked = false;
+
+                document.getElementById('editVotingRestriction').value = block.voting_restriction || '';
+                document.getElementById('editOneTimeUse').checked = !!block.one_time_use;
+
+                clearEditError();
+                document.getElementById('editModal').classList.add('visible');
+
+            } catch (err) {
+                showAlert('Error loading block details');
+            }
+        }
+
+        async function saveBlock() {
+            clearEditError();
+
+            const blockId = document.getElementById('editBlockId').value;
+            const name = document.getElementById('editBlockName').value.trim();
+
+            if (!name) {
+                showEditError('Block name is required');
+                return;
+            }
+
+            const password = document.getElementById('editBlockPassword').value.trim();
+            const clearPassword = document.getElementById('editClearPassword').checked;
+            const expiresAt = document.getElementById('editBlockExpires').value;
+            const clearExpires = document.getElementById('editClearExpires').checked;
+            const oneTimeUse = document.getElementById('editOneTimeUse').checked;
+            const votingRestriction = document.getElementById('editVotingRestriction').value;
+
+            const editBtn = document.getElementById('editBtn');
+            editBtn.disabled = true;
+            editBtn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`/admin/blocks/${blockId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        password: password || null,
+                        clear_password: clearPassword,
+                        expires_at: expiresAt || null,
+                        clear_expires: clearExpires,
+                        one_time_use: oneTimeUse,
+                        voting_restriction: votingRestriction
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    showEditError(data.error || 'Failed to save block');
+                }
+            } catch (err) {
+                showEditError('Error saving block. Please try again.');
+            }
+
+            editBtn.disabled = false;
+            editBtn.textContent = 'Save';
+        }
     </script>
+
 
 </body>
 
