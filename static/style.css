@@ -54,6 +54,9 @@ body {
     font-size: 0.875rem;
     animation: bgShift 30s ease infinite;
     background-size: 400% 400%;
+
+    /* Apply accent color from inline style */
+    --accent: var(--accent-color, #e5e5e5);
 }
 
 /* Subtle background animation */
@@ -172,9 +175,10 @@ h1 {
 }
 
 .btn.primary {
-    background: var(--text-primary);
+    background: var(--accent);
     color: var(--bg-primary);
-    border-color: var(--text-primary);
+    /* Contrast? If accent is dark, this is bad. But typically accent is bright on dark theme. */
+    border-color: var(--accent);
 }
 
 .btn-primary:hover {
@@ -431,7 +435,9 @@ label {
     -webkit-appearance: none;
     width: 10px;
     height: 10px;
-    background: var(--text-primary);
+    background: var(--text-muted);
+    /* Volume is usually less important, maybe text-muted or accent? Let's use text-primary or accent. */
+    background: var(--accent);
     border-radius: 50%;
     cursor: pointer;
 }
@@ -560,7 +566,7 @@ label {
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
-    background: var(--text-primary);
+    background: var(--accent);
     border-radius: 50%;
     cursor: pointer;
     transition: var(--transition);
@@ -573,7 +579,7 @@ label {
 .rating-slider::-moz-range-thumb {
     width: 20px;
     height: 20px;
-    background: var(--text-primary);
+    background: var(--accent);
     border-radius: 50%;
     cursor: pointer;
     border: none;

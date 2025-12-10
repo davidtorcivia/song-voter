@@ -205,8 +205,10 @@ class SongVoter {
             // Setup audio analyser on first play (requires user interaction)
             if (!this.audioContext) {
                 this.setupAudioAnalyser();
-            } else if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume();
+            } else if (this.audioContext.state !== 'running') {
+                this.audioContext.resume().then(() => {
+                    console.log('AudioContext resumed successfully');
+                }).catch(err => console.log('Resume failed:', err));
             }
             // Start wall-clock timer for listening time
             this.startListenTimer();
@@ -650,40 +652,60 @@ class SongVoter {
         // Get accent color from CSS variable or default to white
         const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
 
-        // Create gradient for played portion (subtle for vote page)
-        const playedGradient = this.waveCtx.createLinearGradient(0, 0, progressX, 0);
-        playedGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-        playedGradient.addColorStop(1, accentColor);
-
+        // 1. Draw Unplayed Bars (Base Layer)
+        this.waveCtx.shadowBlur = 0;
+        this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         for (let i = 0; i < data.length; i++) {
             const val = data[i];
             const x = i * barWidth;
             const barHeight = Math.max(2, val * height);
-            const y = (height - barHeight) / 2; // Center vertically
-
-            // Determine color based on progress
-            const isPlayed = (i / data.length) < progress;
-
-            // Hover effect
-            const isHovered = this.hoverX >= 0 && x <= this.hoverX;
-
-            if (isPlayed) {
-                // Played: Gradient with subtle glow
-                this.waveCtx.shadowColor = accentColor;
-                this.waveCtx.shadowBlur = 2;  // Subtle glow
-                this.waveCtx.fillStyle = playedGradient;
-            } else if (isHovered) {
-                // Hovered: Slightly transparent white (preview seek)
-                this.waveCtx.shadowBlur = 0;
-                this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            } else {
-                // Unplayed: Very subtle grey
-                this.waveCtx.shadowBlur = 0;
-                this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-            }
-
+            const y = (height - barHeight) / 2;
             this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
         }
+
+        // 2. Draw Hover Overlay (if hovering beyond progress)
+        if (this.hoverX > progressX) {
+            this.waveCtx.save();
+            this.waveCtx.beginPath();
+            this.waveCtx.rect(progressX, 0, this.hoverX - progressX, height);
+            this.waveCtx.clip();
+
+            this.waveCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < data.length; i++) {
+                const val = data[i];
+                const x = i * barWidth;
+                if (x + barWidth < progressX) continue; // optimization
+                const barHeight = Math.max(2, val * height);
+                const y = (height - barHeight) / 2;
+                this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+            }
+            this.waveCtx.restore();
+        }
+
+        // 3. Draw Played Portion (Clipped with Glow)
+        this.waveCtx.save();
+        this.waveCtx.beginPath();
+        this.waveCtx.rect(0, 0, progressX, height);
+        this.waveCtx.clip();
+
+        // Create gradient for played portion
+        const playedGradient = this.waveCtx.createLinearGradient(0, 0, progressX, 0);
+        playedGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        playedGradient.addColorStop(1, accentColor);
+
+        this.waveCtx.shadowColor = accentColor;
+        this.waveCtx.shadowBlur = 2;  // Subtle glow
+        this.waveCtx.fillStyle = playedGradient;
+
+        for (let i = 0; i < data.length; i++) {
+            const val = data[i];
+            const x = i * barWidth;
+            if (x > progressX) break; // optimization
+            const barHeight = Math.max(2, val * height);
+            const y = (height - barHeight) / 2;
+            this.waveCtx.fillRect(x, y, barWidth - gap, barHeight);
+        }
+        this.waveCtx.restore();
 
         // Draw playhead line
         if (progress > 0 && progress < 1) {

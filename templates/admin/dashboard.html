@@ -362,8 +362,27 @@
                 <div class="setting-info">
                     <span class="setting-label">Accent Color</span>
                 </div>
-                <input type="color" id="accentColor" value="{{ settings.accent_color or '#ffffff' }}"
-                    class="color-picker">
+                <div class="color-picker-widget">
+                    <div class="color-preview" id="colorPreview"
+                        style="background: {{ settings.accent_color or '#ffffff' }}"></div>
+                    <input type="text" id="accentColor" value="{{ settings.accent_color or '#ffffff' }}"
+                        class="color-input" placeholder="#RRGGBB">
+                    <div class="color-swatches">
+                        <div class="swatch" style="background: #60a5fa" data-color="#60a5fa" title="Cyber Blue"></div>
+                        <div class="swatch" style="background: #a78bfa" data-color="#a78bfa" title="Vibrant Purple">
+                        </div>
+                        <div class="swatch" style="background: #f472b6" data-color="#f472b6" title="Neon Pink"></div>
+                        <div class="swatch" style="background: #4ade80" data-color="#4ade80" title="Toxic Green"></div>
+                        <div class="swatch" style="background: #fb923c" data-color="#fb923c" title="Sunset Orange">
+                        </div>
+                        <div class="swatch" style="background: #ffffff" data-color="#ffffff" title="Clean White"></div>
+                        <div class="swatch custom-swatch-trigger" title="Custom Picker">
+                            <input type="color" id="systemColorPicker" class="hidden-picker"
+                                value="{{ settings.accent_color or '#ffffff' }}">
+                            <span>+</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="setting-row">
@@ -441,7 +460,110 @@
         </div>
     </div>
 
+    <style>
+        .color-picker-widget {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .color-input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .color-swatches {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+            position: relative;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .swatch:hover {
+            transform: scale(1.1);
+            border-color: var(--text-primary);
+        }
+
+        .swatch.custom-swatch-trigger {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        .hidden-picker {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            left: 0;
+            top: 0;
+        }
+
+        .color-preview {
+            height: 10px;
+            width: 100%;
+            border-radius: 5px;
+            transition: background 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
     <script>
+        // Color Picker Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const accentInput = document.getElementById('accentColor');
+            const colorPreview = document.getElementById('colorPreview');
+            const systemPicker = document.getElementById('systemColorPicker');
+
+            if (accentInput && colorPreview && systemPicker) {
+                document.querySelectorAll('.swatch[data-color]').forEach(s => {
+                    s.addEventListener('click', () => {
+                        const color = s.dataset.color;
+                        accentInput.value = color;
+                        colorPreview.style.background = color;
+                        systemPicker.value = color;
+                    });
+                });
+
+                accentInput.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    colorPreview.style.background = val;
+                    if (val.match(/^#[0-9a-f]{6}$/i)) {
+                        systemPicker.value = val;
+                    }
+                });
+
+                systemPicker.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    accentInput.value = val;
+                    colorPreview.style.background = val;
+                });
+            }
+        });
+
         // Custom styled modal
         let confirmCallback = null;
 

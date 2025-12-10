@@ -309,56 +309,63 @@ def get_audio(song_id):
 
 @app.route('/api/songs/<int:song_id>/vote', methods=['POST'])
 def vote(song_id):
-    """Submit a vote for a song."""
-    song = db.get_song_by_id(song_id)
-    if not song:
-        return jsonify({'error': 'Song not found'}), 404
-    
-    # Check voting time window (admin bypass)
-    if not session.get('admin'):
-        from datetime import datetime
-        now = datetime.now()
+    try:
+        """Submit a vote for a song."""
+        song = db.get_song_by_id(song_id)
+        if not song:
+            return jsonify({'error': 'Song not found'}), 404
         
-        voting_start = db.get_setting('voting_start', '')
-        voting_end = db.get_setting('voting_end', '')
+        # Check voting time window (admin bypass)
+        if not session.get('admin'):
+            from datetime import datetime
+            now = datetime.now()
+            
+            voting_start = db.get_setting('voting_start', '')
+            voting_end = db.get_setting('voting_end', '')
+            
+            if voting_start:
+                try:
+                    start_dt = datetime.fromisoformat(voting_start)
+                    if now < start_dt:
+                        return jsonify({'error': 'Voting has not started yet'}), 403
+                except ValueError:
+                    pass
+            
+            if voting_end:
+                try:
+                    end_dt = datetime.fromisoformat(voting_end)
+                    if now > end_dt:
+                        return jsonify({'error': 'Voting has ended'}), 403
+                except ValueError:
+                    pass
         
-        if voting_start:
-            try:
-                start_dt = datetime.fromisoformat(voting_start)
-                if now < start_dt:
-                    return jsonify({'error': 'Voting has not started yet'}), 403
-            except ValueError:
-                pass
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        thumbs_up = data.get('thumbs_up')
+        rating = data.get('rating')
         
-        if voting_end:
-            try:
-                end_dt = datetime.fromisoformat(voting_end)
-                if now > end_dt:
-                    return jsonify({'error': 'Voting has ended'}), 403
-            except ValueError:
-                pass
-    
-    data = request.get_json()
-    thumbs_up = data.get('thumbs_up')
-    rating = data.get('rating')
-    
-    if thumbs_up is None and rating is None:
-        return jsonify({'error': 'Must provide thumbs_up or rating'}), 400
-    
-    if rating is not None and (rating < 1 or rating > 10):
-        return jsonify({'error': 'Rating must be between 1 and 10'}), 400
-    
-    # Check voting restrictions (admin bypass)
-    voter_id = None
-    if not session.get('admin'):
-        voter_id = db.get_voter_id(request)
-        if voter_id and db.has_voted(song_id, voter_id):
-            return jsonify({'error': 'You have already voted on this song'}), 403
-    
-    db.add_vote(song_id, thumbs_up, rating, voter_id)
-    stats = db.get_song_stats(song_id)
-    
-    return jsonify({'success': True, 'stats': stats})
+        if thumbs_up is None and rating is None:
+            return jsonify({'error': 'Must provide thumbs_up or rating'}), 400
+        
+        if rating is not None and (rating < 1 or rating > 10):
+            return jsonify({'error': 'Rating must be between 1 and 10'}), 400
+        
+        # Check voting restrictions (admin bypass)
+        voter_id = None
+        if not session.get('admin'):
+            voter_id = db.get_voter_id(request)
+            if voter_id and db.has_voted(song_id, voter_id):
+                return jsonify({'error': 'You have already voted on this song'}), 403
+        
+        db.add_vote(song_id, thumbs_up, rating, voter_id)
+        stats = db.get_song_stats(song_id)
+        
+        return jsonify({'success': True, 'stats': stats})
+    except Exception as e:
+        app.logger.error(f"Error submitting vote for song {song_id}: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/base-names', methods=['GET'])
