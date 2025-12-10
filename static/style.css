@@ -907,29 +907,44 @@ label {
     }
 }
 
-/* Responsive */
+/* Responsive - Compressed for mobile */
 @media (max-width: 480px) {
     .container {
-        padding: 32px 16px;
+        padding: 16px 12px;
     }
 
     h1 {
-        font-size: 1.25rem;
-        margin-bottom: 32px;
+        font-size: 1.1rem;
+        margin-bottom: 16px;
     }
 
     .card {
-        padding: 20px;
+        padding: 16px;
+        margin-bottom: 12px;
     }
 
     .song-name {
-        font-size: 1.125rem;
+        font-size: 1rem;
+        margin-bottom: 16px;
+    }
+
+    .visualizer {
+        height: 60px;
+        margin-bottom: 12px;
     }
 
     .thumb-btn {
-        width: 56px;
-        height: 56px;
-        font-size: 1.25rem;
+        font-size: 2.5rem;
+        padding: 6px 12px;
+    }
+
+    .thumbs-container {
+        gap: 32px;
+        margin-bottom: 16px;
+    }
+
+    .rating-container {
+        margin-bottom: 16px;
     }
 
     .volume-control {

@@ -339,9 +339,8 @@ class SongVoter {
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
-            // Clear with transparent fade (for full-width over card)
-            this.visCtx.fillStyle = 'rgba(10, 10, 14, 0.3)';
-            this.visCtx.fillRect(0, 0, width, height);
+            // Clear for fully transparent background (shows card through)
+            this.visCtx.clearRect(0, 0, width, height);
 
             // Get appropriate data
             this.analyser.getByteTimeDomainData(dataArray);
@@ -454,13 +453,13 @@ class SongVoter {
                 const baseHue = isDefaultAccent ? 120 : accentHue; // VU meter green
                 const compHue = isDefaultAccent ? 180 : (accentHue + 180) % 360; // Cyan complement
 
-                // Draw trails (oldest to newest, fading) - WHITE ONLY
+                // Draw trails (oldest to newest, fading) - Green VU gradient
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
                     const points = trailHistory[t];
-                    const trailAlpha = (1 - t / maxTrails) * 0.15;
+                    const trailAlpha = (1 - t / maxTrails) * 0.2;
 
                     if (t > 0) {
-                        this.visCtx.strokeStyle = `rgba(255, 255, 255, ${trailAlpha})`;
+                        this.visCtx.strokeStyle = `hsla(${baseHue}, 60%, 50%, ${trailAlpha})`;
                         this.visCtx.lineWidth = 1;
                         this.visCtx.beginPath();
                         this.drawSmoothCurve(points, false);
@@ -470,21 +469,29 @@ class SongVoter {
 
                 // In 'both' mode, reduce oscilloscope prominence so bars show through
                 const isBothMode = mode === 'both';
-                const lineOpacity = isBothMode ? 0.6 : 0.9;
+                const lineOpacity = isBothMode ? 0.7 : 1;
                 const glowStrength = isBothMode ? 4 : 8;
 
-                // Draw main oscilloscope line - WHITE ONLY with subtle glow
+                // Green VU gradient for oscilloscope (no blue/cyan)
+                const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
+                const satBoost = 65 + avgAmplitude * 25;
+                const lightBoost = 45 + avgAmplitude * 30;
+                gradient.addColorStop(0, `hsl(${baseHue - 15}, ${satBoost}%, ${lightBoost}%)`);
+                gradient.addColorStop(0.5, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
+                gradient.addColorStop(1, `hsl(${baseHue + 15}, ${satBoost}%, ${lightBoost}%)`);
+
+                // Draw main oscilloscope line with green glow
                 this.visCtx.globalAlpha = lineOpacity;
-                this.visCtx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                this.visCtx.shadowColor = `hsl(${baseHue}, 60%, 50%)`;
                 this.visCtx.shadowBlur = glowStrength;
-                this.visCtx.strokeStyle = `rgba(255, 255, 255, ${0.7 + avgAmplitude * 0.3})`;
+                this.visCtx.strokeStyle = gradient;
                 this.visCtx.lineWidth = isBothMode ? 1.5 + avgAmplitude * 0.5 : 2 + avgAmplitude;
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, false);
                 this.visCtx.stroke();
 
-                // Draw mirrored line (below center) - WHITE ONLY, even more subtle
-                this.visCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                // Draw mirrored line (below center) - subtle green
+                this.visCtx.strokeStyle = `hsla(${baseHue}, 50%, 40%, 0.3)`;
                 this.visCtx.shadowBlur = 2;
                 this.visCtx.lineWidth = 1;
                 this.visCtx.globalAlpha = 0.3;

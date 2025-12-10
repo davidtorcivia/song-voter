@@ -532,28 +532,38 @@
                     this.canvas.height = height * window.devicePixelRatio;
                     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-                    // Clear with dark background
-                    ctx.fillStyle = 'rgba(15, 15, 20, 0.4)';
-                    ctx.fillRect(0, 0, width, height);
+                    // Clear for fully transparent background
+                    ctx.clearRect(0, 0, width, height);
 
                     // Get appropriate data
                     this.analyser.getByteTimeDomainData(dataArray);
                     this.analyser.getByteFrequencyData(frequencyData);
 
-                    // Parse accent color to get HSL values for dynamic coloring
-                    const accentHex = accentColor.replace('#', '');
-                    const r = parseInt(accentHex.substr(0, 2), 16) / 255;
-                    const g = parseInt(accentHex.substr(2, 2), 16) / 255;
-                    const b = parseInt(accentHex.substr(4, 2), 16) / 255;
-                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-                    let h = 0;
-                    if (max !== min) {
-                        const d = max - min;
-                        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-                        else if (max === g) h = ((b - r) / d + 2) / 6;
-                        else h = ((r - g) / d + 4) / 6;
+                    // Visualizer color logic: Custom color OR default VU green - NEVER accent color
+                    const visualizerColor = window.VISUALIZER_COLOR || '';
+                    const useCustomColor = visualizerColor && visualizerColor !== '';
+
+                    let accentHue;
+                    if (useCustomColor) {
+                        // Parse custom visualizer color to hue
+                        const vHex = visualizerColor.replace('#', '');
+                        const vr = parseInt(vHex.substr(0, 2), 16) / 255;
+                        const vg = parseInt(vHex.substr(2, 2), 16) / 255;
+                        const vb = parseInt(vHex.substr(4, 2), 16) / 255;
+                        const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
+                        let vh = 0;
+                        if (vmax !== vmin) {
+                            const vd = vmax - vmin;
+                            if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
+                            else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
+                            else vh = ((vr - vg) / vd + 4) / 6;
+                        }
+                        accentHue = Math.round(vh * 360);
+                    } else {
+                        // Default: Classic VU meter green (accent color is NEVER used)
+                        accentHue = 120;
                     }
-                    const accentHue = Math.round(h * 360);
+
 
                     // Draw bars first if mode is 'bars' or 'both'
                     if (mode === 'bars' || mode === 'both') {
@@ -613,13 +623,13 @@
                         trailHistory.unshift(currentPoints);
                         if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                        // Draw trails (fading) - WHITE ONLY
+                        // Draw trails (fading) - Green VU gradient
                         for (let t = trailHistory.length - 1; t >= 0; t--) {
                             const points = trailHistory[t];
-                            const trailAlpha = (1 - t / maxTrails) * 0.15;
+                            const trailAlpha = (1 - t / maxTrails) * 0.2;
 
                             if (t > 0) {
-                                ctx.strokeStyle = `rgba(255, 255, 255, ${trailAlpha})`;
+                                ctx.strokeStyle = `hsla(${accentHue}, 60%, 50%, ${trailAlpha})`;
                                 ctx.lineWidth = 1;
                                 ctx.beginPath();
                                 drawSmoothCurve(points, false, height);
@@ -629,22 +639,31 @@
 
                         // In 'both' mode, reduce oscilloscope prominence
                         const isBothMode = mode === 'both';
-                        const lineOpacity = isBothMode ? 0.6 : 0.9;
+                        const lineOpacity = isBothMode ? 0.7 : 1;
                         const glowStrength = isBothMode ? 4 : 8;
 
-                        // Draw main oscilloscope line - WHITE ONLY with subtle glow
+                        // Green VU gradient for oscilloscope (no blue/cyan)
+                        const gradient = ctx.createLinearGradient(0, 0, width, 0);
+                        const satBoost = 65 + avgAmplitude * 25;
+                        const lightBoost = 45 + avgAmplitude * 30;
+                        gradient.addColorStop(0, `hsl(${accentHue - 15}, ${satBoost}%, ${lightBoost}%)`);
+                        gradient.addColorStop(0.5, `hsl(${accentHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
+                        gradient.addColorStop(1, `hsl(${accentHue + 15}, ${satBoost}%, ${lightBoost}%)`);
+
+                        // Draw main oscilloscope line with green glow
                         ctx.globalAlpha = lineOpacity;
-                        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                        ctx.shadowColor = `hsl(${accentHue}, 60%, 50%)`;
                         ctx.shadowBlur = glowStrength;
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 + avgAmplitude * 0.3})`;
+                        ctx.strokeStyle = gradient;
                         ctx.lineWidth = isBothMode ? 1.5 + avgAmplitude * 0.5 : 2 + avgAmplitude;
                         ctx.beginPath();
                         drawSmoothCurve(currentPoints, false, height);
                         ctx.stroke();
 
-                        // Draw mirrored line - subtle
-                        ctx.shadowBlur = 4;
-                        ctx.lineWidth = 1.5;
+                        // Draw mirrored line - subtle green
+                        ctx.strokeStyle = `hsla(${accentHue}, 50%, 40%, 0.3)`;
+                        ctx.shadowBlur = 2;
+                        ctx.lineWidth = 1;
                         ctx.globalAlpha = 0.3;
                         ctx.beginPath();
                         drawSmoothCurve(currentPoints, true, height);
