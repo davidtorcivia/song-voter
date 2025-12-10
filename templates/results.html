@@ -39,6 +39,19 @@
             </div>
         </div>
 
+        <!-- Legend -->
+        <div id="legend" class="results-legend" style="display: none;">
+            <span><span class="rank-badge rank-1">◈</span> 1st</span>
+            <span><span class="rank-badge rank-2">◇</span> 2nd</span>
+            <span><span class="rank-badge rank-3">○</span> 3rd</span>
+            <span><span class="best-version">★</span> Best ver.</span>
+            <span class="legend-sep">│</span>
+            <span><span class="agree-high">●</span> High agree</span>
+            <span><span class="agree-mid">●</span> Mixed</span>
+            <span><span class="agree-low">●</span> Divisive</span>
+            <span><span class="controversial">✧</span> Controversial</span>
+        </div>
+
         <a href="/" class="nav-link">← Back to Voting</a>
     </div>
 
@@ -59,6 +72,7 @@
                     document.getElementById('noResults').style.display = 'block';
                 } else {
                     document.getElementById('resultsTable').style.display = 'table';
+                    document.getElementById('legend').style.display = 'flex';
                     sortResults(currentSort);
                 }
             } catch (err) {
@@ -102,6 +116,24 @@
             const tbody = document.getElementById('resultsBody');
             tbody.innerHTML = '';
 
+            // Compute global top 3 (by avg_rating, descending)
+            const sortedByRating = [...results]
+                .filter(r => r.vote_count > 0)
+                .sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
+            const globalTop3Ids = sortedByRating.slice(0, 3).map(r => r.id);
+
+            // Compute best version per track (base_name)
+            const bestPerTrack = {};
+            for (const r of results) {
+                if (r.vote_count > 0 && r.avg_rating !== null) {
+                    const bn = r.base_name;
+                    if (!bestPerTrack[bn] || r.avg_rating > bestPerTrack[bn].avg_rating) {
+                        bestPerTrack[bn] = r;
+                    }
+                }
+            }
+            const bestPerTrackIds = new Set(Object.values(bestPerTrack).map(r => r.id));
+
             for (const result of results) {
                 const tr = document.createElement('tr');
 
@@ -113,13 +145,21 @@
                     `${result.thumbs_up_pct}%` :
                     '<span class="no-votes">—</span>';
 
-                // Rank badge for top 3 - esoteric symbols
-                const index = results.indexOf(result);
+                // Global rank badge for top 3 overall
                 let rankBadge = '';
-                if (currentSort === 'avg_rating' && !sortAsc && result.vote_count > 0) {
-                    if (index === 0) rankBadge = '<span class="rank-badge rank-1">◈</span>';
-                    else if (index === 1) rankBadge = '<span class="rank-badge rank-2">◇</span>';
-                    else if (index === 2) rankBadge = '<span class="rank-badge rank-3">○</span>';
+                const globalRank = globalTop3Ids.indexOf(result.id);
+                if (globalRank === 0) rankBadge = '<span class="rank-badge rank-1" title="1st overall">◈</span>';
+                else if (globalRank === 1) rankBadge = '<span class="rank-badge rank-2" title="2nd overall">◇</span>';
+                else if (globalRank === 2) rankBadge = '<span class="rank-badge rank-3" title="3rd overall">○</span>';
+
+                // Best version per track badge
+                let bestBadge = '';
+                if (bestPerTrackIds.has(result.id) && result.vote_count > 0) {
+                    // Only show if there are multiple versions of this track
+                    const trackVersions = results.filter(r => r.base_name === result.base_name);
+                    if (trackVersions.length > 1) {
+                        bestBadge = '<span class="best-version" title="Best version of this track">★</span>';
+                    }
                 }
 
                 // Agreement score with color indicator
@@ -135,7 +175,7 @@
                 }
 
                 tr.innerHTML = `
-                    <td>${rankBadge}<a href="/play/${result.id}" class="song-link">${escapeHtml(result.filename)}</a></td>
+                    <td>${rankBadge}${bestBadge}<a href="/play/${result.id}" class="song-link">${escapeHtml(result.filename)}</a></td>
                     <td>${result.vote_count}</td>
                     <td>${rating}</td>
                     <td>${thumbs}</td>
