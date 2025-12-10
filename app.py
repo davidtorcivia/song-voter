@@ -639,23 +639,32 @@ def admin_upload_song():
 @app.route('/admin/songs/<int:song_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_song(song_id):
-    """Delete a song."""
+    """Delete a song completely - source file, normalized, waveform, and database."""
     full_path = db.delete_song(song_id)
     
     if full_path:
-        # Try to delete normalized version
+        # Delete the original source file
+        try:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+                print(f"Deleted source file: {full_path}")
+        except Exception as e:
+            print(f"Error deleting source file: {e}")
+        
+        # Delete normalized version
         try:
             import audio_normalize
             normalized_path = audio_normalize.get_normalized_path(full_path)
             if os.path.exists(normalized_path):
                 os.remove(normalized_path)
+                print(f"Deleted normalized file: {normalized_path}")
         except Exception as e:
             print(f"Error deleting normalized file: {e}")
             
         # Delete waveform
         waveform.delete_waveform(song_id)
         
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'deleted_file': full_path})
     
     return jsonify({'error': 'Song not found'}), 404
 

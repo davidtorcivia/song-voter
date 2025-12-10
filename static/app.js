@@ -362,9 +362,9 @@ class SongVoter {
             }
             const rawHue = Math.round(h * 360);
 
-            // Better default colors: esoteric palette (jade → rose-gold → violet)
+            // Default: Green audio equipment style (VU meter aesthetic)
             const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-            const accentHue = isDefaultAccent ? 165 : rawHue; // Default to deep jade/teal
+            const accentHue = isDefaultAccent ? 120 : rawHue; // Classic VU meter green
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
@@ -378,9 +378,9 @@ class SongVoter {
                     const barHeight = value * height * 0.9;
                     const x = i * (barWidth + gap);
 
-                    // Esoteric spread: jade → rose-gold → violet
-                    const hueSpread = isDefaultAccent ? 200 : 50;
-                    const hueOffset = (i / barCount) * hueSpread - (hueSpread / 3);
+                    // Green audio equipment gradient - lime to teal
+                    const hueSpread = isDefaultAccent ? 60 : 50;
+                    const hueOffset = (i / barCount) * hueSpread - (hueSpread / 2);
                     const barHue = (accentHue + hueOffset + 360) % 360;
 
                     if (mode === 'both') {
@@ -427,9 +427,9 @@ class SongVoter {
                 trailHistory.unshift(currentPoints);
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                // Esoteric oscilloscope colors: jade → rose-gold complementary
-                const baseHue = isDefaultAccent ? 165 : accentHue; // Match bars default jade
-                const compHue = isDefaultAccent ? 340 : (accentHue + 180) % 360; // Rose-gold complement
+                // Green oscilloscope: classic VU green → electric blue complement
+                const baseHue = isDefaultAccent ? 120 : accentHue; // VU meter green
+                const compHue = isDefaultAccent ? 180 : (accentHue + 180) % 360; // Cyan complement
 
                 // Draw trails (oldest to newest, fading)
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
@@ -725,10 +725,10 @@ class SongVoter {
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Fade out and clear waveform for smooth transition
+        // Smooth fade out waveform for transition (gentler timing)
         if (this.waveformCanvas) {
-            this.waveformCanvas.style.transition = 'opacity 0.2s ease-out';
-            this.waveformCanvas.style.opacity = '0.3';
+            this.waveformCanvas.style.transition = 'opacity 0.35s ease-out';
+            this.waveformCanvas.style.opacity = '0.5';
         }
         this.waveData = null;
 
@@ -736,17 +736,18 @@ class SongVoter {
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Fetch waveform with fade-in
+        // Fetch waveform with smooth fade-in
         fetch(`/api/songs/${song.id}/waveform`)
             .then(res => res.json())
             .then(data => {
                 this.waveData = data;
                 this.drawWaveform();
-                // Smooth fade in
+                // Gentle fade in after brief delay
                 if (this.waveformCanvas) {
+                    this.waveformCanvas.style.transition = 'opacity 0.4s ease-in';
                     setTimeout(() => {
                         this.waveformCanvas.style.opacity = '1';
-                    }, 50);
+                    }, 150);
                 }
             })
             .catch(() => this.waveData = null);

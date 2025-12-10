@@ -612,10 +612,10 @@
                         trailHistory.unshift(currentPoints);
                         if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                        // Esoteric oscilloscope colors: jade → rose-gold
+                        // Green oscilloscope: classic VU green → cyan complement
                         const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-                        const baseHue = isDefaultAccent ? 165 : accentHue; // Deep jade
-                        const compHue = isDefaultAccent ? 340 : (accentHue + 180) % 360; // Rose-gold
+                        const baseHue = isDefaultAccent ? 120 : accentHue; // VU meter green
+                        const compHue = isDefaultAccent ? 180 : (accentHue + 180) % 360; // Cyan
 
                         // Draw trails (fading)
                         for (let t = trailHistory.length - 1; t >= 0; t--) {
