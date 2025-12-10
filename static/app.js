@@ -306,7 +306,7 @@ class SongVoter {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 128; // Increased for more detail
+            this.analyser.fftSize = 256; // Higher for smoother oscilloscope
 
             // Pre-allocate typed arrays once (performance optimization)
             const bufferLength = this.analyser.frequencyBinCount;

@@ -73,6 +73,9 @@
         .play-page .control-btn {
             width: 56px;
             height: 56px;
+            min-width: 56px;
+            min-height: 56px;
+            flex-shrink: 0;
             border-radius: 50%;
             background: var(--bg-elevated);
             border: 1px solid var(--border);
@@ -125,6 +128,25 @@
             color: var(--text-muted);
             font-size: 0.85rem;
             margin-bottom: 24px;
+        }
+
+        /* Mobile: reduce gap so buttons fit */
+        @media (max-width: 400px) {
+            .play-page .controls-row {
+                gap: 12px;
+            }
+
+            .play-page .control-btn {
+                width: 48px;
+                height: 48px;
+                min-width: 48px;
+                min-height: 48px;
+                font-size: 1.25rem;
+            }
+
+            .play-page .volume-slider {
+                width: 70px;
+            }
         }
     </style>
 </head>
