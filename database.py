@@ -90,7 +90,8 @@ def init_db():
         
         # UI Customization
         'accent_color': '#ffffff',  # Accent color for waveform, etc.
-        'visualizer_mode': 'bars',  # bars or wave
+        'visualizer_mode': 'bars',  # bars, wave, or both
+        'visualizer_color': '',  # Empty = use default VU green, otherwise hex color
     }
     for key, value in default_settings.items():
         cursor.execute(

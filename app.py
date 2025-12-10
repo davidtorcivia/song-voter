@@ -115,6 +115,7 @@ def inject_branding():
             'favicon': db.get_setting('favicon', '/static/favicon.ico'),
             'accent_color': db.get_setting('accent_color', '#ffffff'),
             'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
+            'visualizer_color': db.get_setting('visualizer_color', ''),
         }
     }
 
@@ -152,6 +153,7 @@ def index():
         'favicon': db.get_setting('favicon', '/static/favicon.ico'),
         'accent_color': db.get_setting('accent_color', '#ffffff'),
         'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
+        'visualizer_color': db.get_setting('visualizer_color', ''),
     }
     
     # Server-side caching: Get songs from DB
@@ -522,7 +524,7 @@ def admin_update_settings():
         'site_password', 'voting_restriction', 'results_visibility',
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
         'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
-        'accent_color', 'visualizer_mode'
+        'accent_color', 'visualizer_mode', 'visualizer_color'
     ]
     
     for key, value in data.items():

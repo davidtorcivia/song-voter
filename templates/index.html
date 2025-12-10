@@ -135,6 +135,7 @@
         window.INITIAL_SONGS = {{ songs | tojson | safe }};
         window.INITIAL_BASE_NAMES = {{ base_names | tojson | safe }};
         window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
+        window.VISUALIZER_COLOR = '{{ branding.visualizer_color or "" }}';
     </script>
     <script src="/static/app.js"></script>
 </body>

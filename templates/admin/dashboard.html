@@ -403,6 +403,23 @@
                         Oscilloscope)</option>
                 </select>
             </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Visualizer Color</span>
+                    <span class="setting-desc">Leave unchecked for default VU green</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label class="toggle">
+                        <input type="checkbox" id="visualizerColorEnabled" {% if settings.visualizer_color %}checked{%
+                            endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <input type="color" id="visualizerColor" class="color-picker"
+                        value="{{ settings.visualizer_color or '#22c55e' }}" {% if not settings.visualizer_color
+                        %}disabled{% endif %}>
+                </div>
+            </div>
         </div>
 
         <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
@@ -609,8 +626,15 @@
             input.value = newVal;
         }
 
+        // Visualizer color toggle
+        document.getElementById('visualizerColorEnabled').addEventListener('change', (e) => {
+            const colorPicker = document.getElementById('visualizerColor');
+            colorPicker.disabled = !e.target.checked;
+        });
+
         // Save All Settings
         document.getElementById('saveSettings').addEventListener('click', async () => {
+            const visualizerColorEnabled = document.getElementById('visualizerColorEnabled').checked;
             const settings = {
                 site_password: document.getElementById('sitePassword').value,
                 voting_restriction: document.getElementById('votingRestriction').value,
@@ -624,6 +648,7 @@
                 site_url: document.getElementById('siteUrl').value,
                 accent_color: document.getElementById('accentColor').value,
                 visualizer_mode: document.getElementById('visualizerMode').value,
+                visualizer_color: visualizerColorEnabled ? document.getElementById('visualizerColor').value : '',
             };
 
             try {

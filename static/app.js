@@ -362,9 +362,34 @@ class SongVoter {
             }
             const rawHue = Math.round(h * 360);
 
-            // Default: Green audio equipment style (VU meter aesthetic)
-            const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
-            const accentHue = isDefaultAccent ? 120 : rawHue; // Classic VU meter green
+            // Check for custom visualizer color first, then fall back to default VU green
+            const visualizerColor = window.VISUALIZER_COLOR || '';
+            const useCustomColor = visualizerColor && visualizerColor !== '';
+            const useDefaultGreen = !useCustomColor && (!accentColor || accentColor === '#ffffff' || accentColor === '');
+
+            let accentHue;
+            if (useCustomColor) {
+                // Parse custom visualizer color to hue
+                const vHex = visualizerColor.replace('#', '');
+                const vr = parseInt(vHex.substr(0, 2), 16) / 255;
+                const vg = parseInt(vHex.substr(2, 2), 16) / 255;
+                const vb = parseInt(vHex.substr(4, 2), 16) / 255;
+                const vmax = Math.max(vr, vg, vb), vmin = Math.min(vr, vg, vb);
+                let vh = 0;
+                if (vmax !== vmin) {
+                    const vd = vmax - vmin;
+                    if (vmax === vr) vh = ((vg - vb) / vd + (vg < vb ? 6 : 0)) / 6;
+                    else if (vmax === vg) vh = ((vb - vr) / vd + 2) / 6;
+                    else vh = ((vr - vg) / vd + 4) / 6;
+                }
+                accentHue = Math.round(vh * 360);
+            } else if (useDefaultGreen) {
+                accentHue = 120; // Classic VU meter green
+            } else {
+                accentHue = rawHue; // Use accent color
+            }
+
+            const isDefaultAccent = useDefaultGreen;
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
