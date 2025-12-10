@@ -182,13 +182,16 @@ h1 {
     letter-spacing: -0.02em;
 }
 
-/* Cards */
+/* Cards - Dark Glass Effect */
 .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: rgba(18, 18, 22, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-lg);
     padding: 24px;
     margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 /* Buttons */

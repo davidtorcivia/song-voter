@@ -464,12 +464,18 @@ class SongVoter {
                 gradient.addColorStop(0.75, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
                 gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
 
+                // In 'both' mode, reduce oscilloscope prominence so bars show through
+                const isBothMode = mode === 'both';
+                const lineOpacity = isBothMode ? 0.7 : 1;
+                const glowStrength = isBothMode ? 3 + avgAmplitude * 2 : 6 + avgAmplitude * 4;
+
                 // Draw main oscilloscope line with subtle glow (reduced for luxe feel)
                 const glowColor = isDefaultAccent ? `hsl(${baseHue}, 60%, 60%)` : accentColor;
+                this.visCtx.globalAlpha = lineOpacity;
                 this.visCtx.shadowColor = glowColor;
-                this.visCtx.shadowBlur = 6 + avgAmplitude * 4; // 6-10 dynamic glow
+                this.visCtx.shadowBlur = glowStrength;
                 this.visCtx.strokeStyle = gradient;
-                this.visCtx.lineWidth = 2 + avgAmplitude; // 2-3 dynamic line width
+                this.visCtx.lineWidth = isBothMode ? 1.5 + avgAmplitude * 0.5 : 2 + avgAmplitude;
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, false);
                 this.visCtx.stroke();
@@ -653,6 +659,12 @@ class SongVoter {
             navigator.vibrate(15);
         }
 
+        // Fade out waveform FIRST for smooth transition
+        if (this.waveformCanvas) {
+            this.waveformCanvas.style.transition = 'opacity 0.25s ease-out';
+            this.waveformCanvas.style.opacity = '0';
+        }
+
         // Animate out the current song with more visual weight
         const card = document.querySelector('.card');
         if (this.songName) {
@@ -725,29 +737,23 @@ class SongVoter {
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Smooth fade out waveform for transition (gentler timing)
-        if (this.waveformCanvas) {
-            this.waveformCanvas.style.transition = 'opacity 0.35s ease-out';
-            this.waveformCanvas.style.opacity = '0.5';
-        }
+        // Clear waveform data (fade-out already happened in playNext)
         this.waveData = null;
 
         // Load audio
         this.audio.src = `/api/songs/${song.id}/audio`;
         this.audio.load();
 
-        // Fetch waveform with smooth fade-in
+        // Fetch waveform and smoothly fade in once loaded
         fetch(`/api/songs/${song.id}/waveform`)
             .then(res => res.json())
             .then(data => {
                 this.waveData = data;
                 this.drawWaveform();
-                // Gentle fade in after brief delay
+                // Fade in waveform after data is ready
                 if (this.waveformCanvas) {
-                    this.waveformCanvas.style.transition = 'opacity 0.4s ease-in';
-                    setTimeout(() => {
-                        this.waveformCanvas.style.opacity = '1';
-                    }, 150);
+                    this.waveformCanvas.style.transition = 'opacity 0.5s ease-in';
+                    this.waveformCanvas.style.opacity = '1';
                 }
             })
             .catch(() => this.waveData = null);
