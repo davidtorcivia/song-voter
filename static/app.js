@@ -445,7 +445,8 @@ class SongVoter {
 
                 // Store current frame points for trails
                 const currentPoints = [];
-                const sliceWidth = width / bufferLength;
+                // Use (bufferLength - 1) so last point reaches exactly width
+                const sliceWidth = width / (bufferLength - 1);
 
                 for (let i = 0; i < bufferLength; i++) {
                     const v = dataArray[i] / 128.0;
