@@ -339,6 +339,21 @@ class SongVoter {
             this.analyser.getByteTimeDomainData(dataArray);
             this.analyser.getByteFrequencyData(frequencyData);
 
+            // Parse accent color to get HSL values for dynamic coloring
+            const accentHex = accentColor.replace('#', '');
+            const r = parseInt(accentHex.substr(0, 2), 16) / 255;
+            const g = parseInt(accentHex.substr(2, 2), 16) / 255;
+            const b = parseInt(accentHex.substr(4, 2), 16) / 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h = 0;
+            if (max !== min) {
+                const d = max - min;
+                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                else if (max === g) h = ((b - r) / d + 2) / 6;
+                else h = ((r - g) / d + 4) / 6;
+            }
+            const accentHue = Math.round(h * 360);
+
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
                 const barCount = 48;
@@ -351,10 +366,12 @@ class SongVoter {
                     const barHeight = value * height * 0.85;
                     const x = i * (barWidth + gap);
 
-                    // Monochrome visualizer with subtle coloring
-                    const lightness = 20 + value * 40;
-                    const alpha = mode === 'both' ? 0.5 : 0.8;
-                    this.visCtx.fillStyle = `hsla(0, 0%, ${lightness}%, ${alpha})`;
+                    // Use accent hue for bars with varying saturation
+                    const hueShift = (i / barCount) * 30 - 15; // -15 to +15 hue shift
+                    const sat = 30 + value * 40;
+                    const light = 25 + value * 35;
+                    const alpha = mode === 'both' ? 0.4 : 0.7;
+                    this.visCtx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, ${alpha})`;
                     this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
                 }
             }
@@ -375,13 +392,13 @@ class SongVoter {
                 trailHistory.unshift(currentPoints);
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                // Draw trails (oldest to newest, fading)
+                // Draw trails (oldest to newest, fading) using accent color
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
                     const points = trailHistory[t];
-                    const trailAlpha = (1 - t / maxTrails) * 0.3;
+                    const trailAlpha = (1 - t / maxTrails) * 0.4;
 
                     if (t > 0) {
-                        this.visCtx.strokeStyle = `rgba(167, 139, 250, ${trailAlpha})`;
+                        this.visCtx.strokeStyle = `hsla(${accentHue}, 70%, 60%, ${trailAlpha})`;
                         this.visCtx.lineWidth = 1;
                         this.visCtx.beginPath();
                         this.drawSmoothCurve(points, false);
@@ -389,10 +406,14 @@ class SongVoter {
                     }
                 }
 
-                // Create gradient for main line
+                // Create KILLER gradient - accent to bright white to complementary to accent
                 const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
-                gradient.addColorStop(0, accentColor);
+                const compHue = (accentHue + 180) % 360; // Complementary color
+                gradient.addColorStop(0, `hsl(${accentHue}, 80%, 65%)`);
+                gradient.addColorStop(0.25, `hsl(${accentHue}, 90%, 75%)`);
                 gradient.addColorStop(0.5, '#ffffff');
+                gradient.addColorStop(0.75, `hsl(${compHue}, 70%, 70%)`);
+                gradient.addColorStop(1, `hsl(${accentHue}, 80%, 65%)`)
                 gradient.addColorStop(1, accentColor);
 
                 // Draw main oscilloscope line with glow

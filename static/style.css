@@ -45,30 +45,34 @@
 
 body {
     font-family: var(--font-mono);
-    background: var(--bg-primary);
+    background:
+        radial-gradient(ellipse at 20% 80%, rgba(var(--accent-rgb, 100, 100, 100), 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(var(--accent-rgb, 100, 100, 100), 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(var(--accent-rgb, 100, 100, 100), 0.03) 0%, transparent 70%),
+        linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0a0a0a 100%);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 0.875rem;
-    animation: bgShift 30s ease infinite;
-    background-size: 400% 400%;
+    animation: bgPulse 20s ease-in-out infinite;
+    background-size: 200% 200%;
 
     /* Apply accent color from inline style */
     --accent: var(--accent-color, #e5e5e5);
 }
 
-/* Subtle background animation */
-@keyframes bgShift {
+/* Subtle background pulse animation */
+@keyframes bgPulse {
 
     0%,
     100% {
-        background-position: 0% 50%;
+        background-position: 0% 0%;
     }
 
     50% {
-        background-position: 100% 50%;
+        background-position: 100% 100%;
     }
 }
 
@@ -903,7 +907,7 @@ label {
 /* Visualizer */
 .visualizer {
     width: 100%;
-    height: 40px;
+    height: 80px;
     margin-bottom: 16px;
     border-radius: var(--radius);
     background: var(--bg-secondary);
