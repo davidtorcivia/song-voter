@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    <div class="container">
+    <div class="container container-wide">
         <h1>Results</h1>
 
         <div class="card">
@@ -112,13 +112,13 @@
                     `${result.thumbs_up_pct}%` :
                     '<span class="no-votes">—</span>';
 
-                // Rank badge for top 3
+                // Rank badge for top 3 - esoteric symbols
                 const index = results.indexOf(result);
                 let rankBadge = '';
                 if (currentSort === 'avg_rating' && !sortAsc && result.vote_count > 0) {
-                    if (index === 0) rankBadge = '<span class="rank-badge gold">🥇</span>';
-                    else if (index === 1) rankBadge = '<span class="rank-badge silver">🥈</span>';
-                    else if (index === 2) rankBadge = '<span class="rank-badge bronze">🥉</span>';
+                    if (index === 0) rankBadge = '<span class="rank-badge rank-1">◈</span>';
+                    else if (index === 1) rankBadge = '<span class="rank-badge rank-2">◇</span>';
+                    else if (index === 2) rankBadge = '<span class="rank-badge rank-3">○</span>';
                 }
 
                 tr.innerHTML = `

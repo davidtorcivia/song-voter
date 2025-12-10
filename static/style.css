@@ -919,6 +919,27 @@ label {
     color: var(--text-secondary);
 }
 
+/* Rank badge colors */
+.rank-badge.rank-1 {
+    color: #ffd700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.rank-badge.rank-2 {
+    color: #c0c0c0;
+    text-shadow: 0 0 6px rgba(192, 192, 192, 0.4);
+}
+
+.rank-badge.rank-3 {
+    color: #cd7f32;
+    text-shadow: 0 0 6px rgba(205, 127, 50, 0.4);
+}
+
+/* Wide container for results/admin pages */
+.container-wide {
+    max-width: 900px;
+}
+
 /* Help Page */
 .help-content {
     line-height: 2;

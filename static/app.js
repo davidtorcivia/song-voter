@@ -92,6 +92,14 @@ class SongVoter {
 
         // Cache accent color
         this.accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
+
+        // Preload next song for instant transitions
+        this.preloadAudio = new Audio();
+        this.preloadAudio.preload = 'auto';
+        this.preloadedSongId = null;
+
+        // Draft votes (auto-save to localStorage)
+        this.draftKey = 'song_voter_draft';
     }
 
     initEventListeners() {
@@ -770,6 +778,12 @@ class SongVoter {
             .catch(() => this.waveData = null);
 
         this.audio.play().catch(err => console.log('Autoplay blocked:', err));
+
+        // Preload next song for instant transition
+        this.preloadNextSong();
+
+        // Restore any draft vote for this song
+        this.restoreDraft();
     }
 
     async togglePlay() {
@@ -982,6 +996,9 @@ class SongVoter {
 
         // Haptic feedback
         if (navigator.vibrate) navigator.vibrate(15);
+
+        // Auto-save draft
+        this.saveDraft();
     }
 
     updateRating() {
@@ -1014,6 +1031,9 @@ class SongVoter {
                 navigator.vibrate(3); // Subtle tick for each value
             }
         }
+
+        // Auto-save draft
+        this.saveDraft();
     }
 
     async submitVote() {
@@ -1044,6 +1064,9 @@ class SongVoter {
                 // Haptic success
                 if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
 
+                // Clear draft after successful submission
+                this.clearDraft();
+
                 this.showFeedback('Saved');
                 this.playNext();
             } else {
@@ -1065,6 +1088,59 @@ class SongVoter {
         setTimeout(() => {
             this.feedback.classList.remove('show');
         }, 3000);
+    }
+
+    // Preload next song in queue for instant transitions
+    preloadNextSong() {
+        const nextIndex = this.currentIndex + 1;
+        if (nextIndex < this.queue.length) {
+            const nextSong = this.queue[nextIndex];
+            this.preloadAudio.src = `/api/songs/${nextSong.id}/audio`;
+            this.preloadAudio.load();
+            this.preloadedSongId = nextSong.id;
+        }
+    }
+
+    // Save draft vote to localStorage
+    saveDraft() {
+        if (!this.currentSong) return;
+        const draft = {
+            songId: this.currentSong.id,
+            thumbs: this.thumbsValue,
+            rating: parseInt(this.ratingSlider.value),
+            timestamp: Date.now()
+        };
+        localStorage.setItem(this.draftKey, JSON.stringify(draft));
+    }
+
+    // Restore draft vote if available
+    restoreDraft() {
+        if (!this.currentSong) return false;
+        try {
+            const draft = JSON.parse(localStorage.getItem(this.draftKey));
+            if (draft && draft.songId === this.currentSong.id) {
+                // Restore thumbs
+                if (draft.thumbs === true) {
+                    this.setThumb(true);
+                } else if (draft.thumbs === false) {
+                    this.setThumb(false);
+                }
+                // Restore rating
+                if (draft.rating) {
+                    this.ratingSlider.value = draft.rating;
+                    this.updateRating();
+                }
+                return true;
+            }
+        } catch (e) {
+            // Invalid draft, ignore
+        }
+        return false;
+    }
+
+    // Clear draft after successful submission
+    clearDraft() {
+        localStorage.removeItem(this.draftKey);
     }
 }
 
