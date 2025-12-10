@@ -208,11 +208,9 @@ class SongVoter {
             // Setup audio analyser on first play (requires user interaction)
             if (!this.audioContext) {
                 this.setupAudioAnalyser();
-            } else if (this.audioContext.state !== 'running') {
-                this.audioContext.resume().then(() => {
-                    console.log('AudioContext resumed successfully');
-                }).catch(err => console.log('Resume failed:', err));
             }
+            // Note: AudioContext resume is now handled in togglePlay() with await
+            // to prevent race conditions that cause audio lag
             // Start wall-clock timer for listening time
             this.startListenTimer();
         });

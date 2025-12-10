@@ -276,7 +276,7 @@
                     this.isPlaying = true;
                     this.playBtn.textContent = '❙❙';
                     if (!this.audioContext) this.setupVisualizer();
-                    else if (this.audioContext.state !== 'running') this.audioContext.resume();
+                    // Note: resume handled in togglePlay() with await
                 });
                 this.audio.addEventListener('pause', () => {
                     this.isPlaying = false;
