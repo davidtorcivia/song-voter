@@ -31,8 +31,10 @@
                 </tbody>
             </table>
 
-            <div id="noResults" style="display: none; text-align: center; padding: 20px; color: var(--text-secondary);">
-                No votes recorded yet. Start voting to see results!
+            <div id="noResults" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">📊</div>
+                <div class="empty-state-title">No votes yet</div>
+                <div class="empty-state-message">Start voting on songs to see results appear here!</div>
             </div>
         </div>
 
@@ -110,8 +112,17 @@
                     `${result.thumbs_up_pct}%` :
                     '<span class="no-votes">—</span>';
 
+                // Rank badge for top 3
+                const index = results.indexOf(result);
+                let rankBadge = '';
+                if (currentSort === 'avg_rating' && !sortAsc && result.vote_count > 0) {
+                    if (index === 0) rankBadge = '<span class="rank-badge gold">🥇</span>';
+                    else if (index === 1) rankBadge = '<span class="rank-badge silver">🥈</span>';
+                    else if (index === 2) rankBadge = '<span class="rank-badge bronze">🥉</span>';
+                }
+
                 tr.innerHTML = `
-                    <td><a href="/play/${result.id}" class="song-link">${escapeHtml(result.filename)}</a></td>
+                    <td>${rankBadge}<a href="/play/${result.id}" class="song-link">${escapeHtml(result.filename)}</a></td>
                     <td>${result.vote_count}</td>
                     <td>${rating}</td>
                     <td>${thumbs}</td>

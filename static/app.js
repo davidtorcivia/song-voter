@@ -797,6 +797,8 @@ class SongVoter {
         const rect = this.progressBar.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
         this.audio.currentTime = percent * this.audio.duration;
+        // Haptic feedback for seek
+        if (navigator.vibrate) navigator.vibrate(5);
     }
 
     setVolume() {
@@ -1003,9 +1005,14 @@ class SongVoter {
         }
         this.ratingValue.style.color = `rgb(${r}, ${g}, ${b})`;
 
-        // Haptic feedback on significant changes
-        if (navigator.vibrate && (value === 1 || value === 5 || value === 10)) {
-            navigator.vibrate(10);
+        // Haptic ticks on every value change
+        if (navigator.vibrate) {
+            // Stronger vibration at boundaries (1, 5, 10)
+            if (value === 1 || value === 5 || value === 10) {
+                navigator.vibrate(8);
+            } else {
+                navigator.vibrate(3); // Subtle tick for each value
+            }
         }
     }
 
@@ -1028,6 +1035,15 @@ class SongVoter {
             const data = await response.json();
 
             if (data.success) {
+                // Vote pulse animation
+                const card = document.querySelector('.card');
+                if (card) {
+                    card.classList.add('vote-pulse');
+                    setTimeout(() => card.classList.remove('vote-pulse'), 600);
+                }
+                // Haptic success
+                if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
+
                 this.showFeedback('Saved');
                 this.playNext();
             } else {
