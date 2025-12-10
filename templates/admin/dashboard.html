@@ -376,6 +376,12 @@
                         <div class="swatch" style="background: #fb923c" data-color="#fb923c" title="Sunset Orange">
                         </div>
                         <div class="swatch" style="background: #ffffff" data-color="#ffffff" title="Clean White"></div>
+                        <div class="swatch"
+                            style="background: linear-gradient(135deg, #333 25%, #666 50%, #333 75%); position: relative;"
+                            data-color="" title="Disabled (No Accent)">
+                            <span
+                                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #999;">∅</span>
+                        </div>
                         <div class="swatch custom-swatch-trigger" title="Custom Picker">
                             <input type="color" id="systemColorPicker" class="hidden-picker"
                                 value="{{ settings.accent_color or '#ffffff' }}">

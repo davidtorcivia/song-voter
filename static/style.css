@@ -46,33 +46,37 @@
 body {
     font-family: var(--font-mono);
     background:
-        radial-gradient(ellipse at 20% 80%, rgba(var(--accent-rgb, 100, 100, 100), 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(var(--accent-rgb, 100, 100, 100), 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(var(--accent-rgb, 100, 100, 100), 0.03) 0%, transparent 70%),
-        linear-gradient(180deg, #0a0a0a 0%, #111111 50%, #0a0a0a 100%);
+        radial-gradient(ellipse at 20% 80%, rgba(120, 80, 200, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(80, 120, 200, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 40% 40%, rgba(100, 60, 180, 0.08) 0%, transparent 60%),
+        linear-gradient(135deg, #0a0a0c 0%, #0f0f14 25%, #0a0a0c 50%, #0f0f14 75%, #0a0a0c 100%);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-size: 0.875rem;
-    animation: bgPulse 20s ease-in-out infinite;
-    background-size: 200% 200%;
+    animation: bgDrift 15s ease-in-out infinite;
+    background-size: 300% 300%;
 
     /* Apply accent color from inline style */
     --accent: var(--accent-color, #e5e5e5);
 }
 
-/* Subtle background pulse animation */
-@keyframes bgPulse {
+/* Visible background drift animation */
+@keyframes bgDrift {
 
     0%,
     100% {
-        background-position: 0% 0%;
+        background-position: 0% 50%;
     }
 
-    50% {
-        background-position: 100% 100%;
+    33% {
+        background-position: 100% 0%;
+    }
+
+    66% {
+        background-position: 50% 100%;
     }
 }
 

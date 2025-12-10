@@ -462,10 +462,21 @@
             setupVisualizer() {
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 this.analyser = this.audioContext.createAnalyser();
-                const source = this.audioContext.createMediaElementSource(this.audio);
-                source.connect(this.analyser);
-                this.analyser.connect(this.audioContext.destination);
                 this.analyser.fftSize = 256;
+
+                // Create gain node for volume control AFTER analyser
+                this.gainNode = this.audioContext.createGain();
+                this.gainNode.gain.value = this.volume ? this.volume.value / 100 : 1;
+
+                const source = this.audioContext.createMediaElementSource(this.audio);
+                // Route: source -> analyser -> gainNode -> destination
+                source.connect(this.analyser);
+                this.analyser.connect(this.gainNode);
+                this.gainNode.connect(this.audioContext.destination);
+
+                // Set audio element to full volume (gain controls output)
+                this.audio.volume = 1;
+
                 this.drawVisualizer();
             }
 
@@ -536,23 +547,35 @@
 
                     // Draw bars first if mode is 'bars' or 'both'
                     if (mode === 'bars' || mode === 'both') {
-                        const barCount = 48;
-                        const barWidth = (width / barCount) * 0.8;
-                        const gap = (width / barCount) * 0.2;
+                        const barCount = 64; // More bars for smoother look
+                        const barWidth = (width / barCount) * 0.85;
+                        const gap = (width / barCount) * 0.15;
 
                         for (let i = 0; i < barCount; i++) {
                             const idx = Math.floor(i * bufferLength / barCount);
                             const value = frequencyData[idx] / 255;
-                            const barHeight = value * height * 0.85;
+                            const barHeight = value * height * 0.9;
                             const x = i * (barWidth + gap);
 
-                            // Use accent hue for bars with varying saturation
-                            const hueShift = (i / barCount) * 30 - 15;
-                            const sat = 40 + value * 35;
-                            const light = 30 + value * 35;
-                            const alpha = mode === 'both' ? 0.4 : (0.6 + value * 0.3);
+                            if (mode === 'both') {
+                                // In both mode: bars are a subtle glowing backdrop
+                                const hueShift = (i / barCount) * 40 - 20;
+                                const sat = 25 + value * 30;
+                                const light = 20 + value * 25;
 
-                            ctx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, ${alpha})`;
+                                // Create vertical gradient for each bar
+                                const barGrad = ctx.createLinearGradient(0, height, 0, height - barHeight);
+                                barGrad.addColorStop(0, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.6)`);
+                                barGrad.addColorStop(1, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.1)`);
+
+                                ctx.fillStyle = barGrad;
+                            } else {
+                                // Bars-only mode: full vibrant bars
+                                const hueShift = (i / barCount) * 30 - 15;
+                                const sat = 50 + value * 40;
+                                const light = 35 + value * 40;
+                                ctx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.85)`;
+                            }
                             ctx.fillRect(x, height - barHeight, barWidth, barHeight);
                         }
                     }

@@ -298,11 +298,21 @@ class SongVoter {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 64;
+            this.analyser.fftSize = 128; // Increased for more detail
+
+            // Create gain node for volume control AFTER analyser
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = this.volumeSlider ? this.volumeSlider.value / 100 : 1;
 
             const source = this.audioContext.createMediaElementSource(this.audio);
+            // Route: source -> analyser -> gainNode -> destination
+            // This way analyser sees full amplitude, gain controls output
             source.connect(this.analyser);
-            this.analyser.connect(this.audioContext.destination);
+            this.analyser.connect(this.gainNode);
+            this.gainNode.connect(this.audioContext.destination);
+
+            // Disable HTML5 audio volume (we use gainNode now)
+            this.audio.volume = 1;
 
             this.drawVisualizer();
         } catch (err) {
@@ -356,22 +366,35 @@ class SongVoter {
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
-                const barCount = 48;
-                const barWidth = (width / barCount) * 0.8;
-                const gap = (width / barCount) * 0.2;
+                const barCount = 64; // More bars for smoother look
+                const barWidth = (width / barCount) * 0.85;
+                const gap = (width / barCount) * 0.15;
 
                 for (let i = 0; i < barCount; i++) {
                     const idx = Math.floor(i * bufferLength / barCount);
                     const value = frequencyData[idx] / 255;
-                    const barHeight = value * height * 0.85;
+                    const barHeight = value * height * 0.9;
                     const x = i * (barWidth + gap);
 
-                    // Use accent hue for bars with varying saturation
-                    const hueShift = (i / barCount) * 30 - 15; // -15 to +15 hue shift
-                    const sat = 30 + value * 40;
-                    const light = 25 + value * 35;
-                    const alpha = mode === 'both' ? 0.4 : 0.7;
-                    this.visCtx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, ${alpha})`;
+                    if (mode === 'both') {
+                        // In both mode: bars are a subtle glowing backdrop
+                        const hueShift = (i / barCount) * 40 - 20;
+                        const sat = 20 + value * 30;
+                        const light = 15 + value * 25;
+
+                        // Create vertical gradient for each bar
+                        const barGrad = this.visCtx.createLinearGradient(0, height, 0, height - barHeight);
+                        barGrad.addColorStop(0, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.5)`);
+                        barGrad.addColorStop(1, `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.1)`);
+
+                        this.visCtx.fillStyle = barGrad;
+                    } else {
+                        // Bars-only mode: full vibrant bars
+                        const hueShift = (i / barCount) * 30 - 15;
+                        const sat = 40 + value * 40;
+                        const light = 30 + value * 40;
+                        this.visCtx.fillStyle = `hsla(${accentHue + hueShift}, ${sat}%, ${light}%, 0.8)`;
+                    }
                     this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
                 }
             }
@@ -705,7 +728,13 @@ class SongVoter {
     }
 
     setVolume() {
-        this.audio.volume = this.volumeSlider.value / 100;
+        const volume = this.volumeSlider.value / 100;
+        // Use gainNode if available (for decoupled visualization)
+        if (this.gainNode) {
+            this.gainNode.gain.value = volume;
+        } else {
+            this.audio.volume = volume;
+        }
     }
 
     updateProgress() {
