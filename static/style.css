@@ -232,11 +232,22 @@ h1 {
     transition: var(--transition);
     background: var(--bg-secondary);
     color: var(--text-primary);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .btn:hover {
     background: var(--bg-elevated);
     border-color: var(--border-hover);
+}
+
+/* Remove sticky hover on touch devices */
+@media (hover: none) {
+    .btn:hover {
+        background: var(--bg-secondary);
+        border-color: var(--border);
+    }
 }
 
 .btn:active {
@@ -548,11 +559,22 @@ label {
     font-size: 3rem;
     line-height: 1;
     padding: 8px 16px;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .thumb-btn:hover {
     color: var(--text-primary);
     transform: scale(1.1);
+}
+
+/* Remove sticky hover on touch devices */
+@media (hover: none) {
+    .thumb-btn:hover:not(.selected) {
+        color: var(--text-secondary);
+        transform: none;
+    }
 }
 
 .thumb-btn.up.selected {
