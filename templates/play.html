@@ -128,7 +128,7 @@
     </style>
 </head>
 
-<body class="play-page">
+<body class="play-page" style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
     <div class="container">
         <h1 id="pageTitle">{{ song.base_name }}</h1>
         <p class="play-subtitle">{{ song.filename }}</p>

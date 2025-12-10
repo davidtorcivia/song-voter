@@ -521,7 +521,8 @@ def admin_update_settings():
     allowed_keys = [
         'site_password', 'voting_restriction', 'results_visibility',
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
-        'site_title', 'site_description', 'site_url', 'og_image', 'favicon'
+        'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
+        'accent_color', 'visualizer_mode'
     ]
     
     for key, value in data.items():
