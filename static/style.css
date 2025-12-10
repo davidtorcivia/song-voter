@@ -182,41 +182,40 @@ h1 {
     letter-spacing: -0.02em;
 }
 
-/* Cards - Premium Dark Glass Effect */
+/* Cards - Refined Dark Glass */
 .card {
     position: relative;
     background: linear-gradient(135deg,
-            rgba(20, 20, 28, 0.8) 0%,
-            rgba(15, 15, 22, 0.85) 50%,
-            rgba(20, 20, 28, 0.8) 100%);
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+            rgba(14, 14, 18, 0.5) 0%,
+            rgba(10, 10, 14, 0.55) 50%,
+            rgba(14, 14, 18, 0.5) 100%);
+    backdrop-filter: blur(32px) saturate(1.1);
+    -webkit-backdrop-filter: blur(32px) saturate(1.1);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-lg);
     padding: 24px;
     margin-bottom: 16px;
     box-shadow:
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        0 2px 8px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+        0 4px 16px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
     overflow: hidden;
 }
 
-/* Subtle inner glow at top edge */
+/* Subtle top highlight */
 .card::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 10%;
-    right: 10%;
+    left: 15%;
+    right: 15%;
     height: 1px;
     background: linear-gradient(90deg,
             transparent 0%,
-            rgba(255, 255, 255, 0.15) 50%,
+            rgba(255, 255, 255, 0.08) 50%,
             transparent 100%);
     pointer-events: none;
 }
+
 
 /* Buttons */
 .btn {
@@ -970,13 +969,14 @@ label {
     background: rgba(255, 255, 255, 0.15);
 }
 
-/* Visualizer */
+/* Visualizer - extends to card edges */
 .visualizer {
-    width: 100%;
+    width: calc(100% + 48px);
+    margin-left: -24px;
+    margin-right: -24px;
     height: 80px;
     margin-bottom: 16px;
-    border-radius: var(--radius);
-    background: var(--bg-secondary);
+    background: transparent;
 }
 
 /* Modal */

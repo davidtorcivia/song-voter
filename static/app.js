@@ -339,8 +339,8 @@ class SongVoter {
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
-            // Clear with dark background
-            this.visCtx.fillStyle = '#111111';
+            // Clear with transparent fade (for full-width over card)
+            this.visCtx.fillStyle = 'rgba(10, 10, 14, 0.3)';
             this.visCtx.fillRect(0, 0, width, height);
 
             // Get appropriate data
@@ -362,10 +362,9 @@ class SongVoter {
             }
             const rawHue = Math.round(h * 360);
 
-            // Check for custom visualizer color first, then fall back to default VU green
+            // Visualizer color logic: Custom color OR default VU green - NEVER accent color
             const visualizerColor = window.VISUALIZER_COLOR || '';
             const useCustomColor = visualizerColor && visualizerColor !== '';
-            const useDefaultGreen = !useCustomColor && (!accentColor || accentColor === '#ffffff' || accentColor === '');
 
             let accentHue;
             if (useCustomColor) {
@@ -383,13 +382,12 @@ class SongVoter {
                     else vh = ((vr - vg) / vd + 4) / 6;
                 }
                 accentHue = Math.round(vh * 360);
-            } else if (useDefaultGreen) {
-                accentHue = 120; // Classic VU meter green
             } else {
-                accentHue = rawHue; // Use accent color
+                // Default: Classic VU meter green (accent color is NEVER used)
+                accentHue = 120;
             }
 
-            const isDefaultAccent = useDefaultGreen;
+            const isDefaultAccent = !useCustomColor;
 
             // Draw bars first if mode is 'bars' or 'both'
             if (mode === 'bars' || mode === 'both') {
@@ -456,13 +454,13 @@ class SongVoter {
                 const baseHue = isDefaultAccent ? 120 : accentHue; // VU meter green
                 const compHue = isDefaultAccent ? 180 : (accentHue + 180) % 360; // Cyan complement
 
-                // Draw trails (oldest to newest, fading)
+                // Draw trails (oldest to newest, fading) - WHITE ONLY
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
                     const points = trailHistory[t];
-                    const trailAlpha = (1 - t / maxTrails) * 0.3;
+                    const trailAlpha = (1 - t / maxTrails) * 0.15;
 
                     if (t > 0) {
-                        this.visCtx.strokeStyle = `hsla(${baseHue}, 50%, 50%, ${trailAlpha})`;
+                        this.visCtx.strokeStyle = `rgba(255, 255, 255, ${trailAlpha})`;
                         this.visCtx.lineWidth = 1;
                         this.visCtx.beginPath();
                         this.drawSmoothCurve(points, false);
@@ -470,45 +468,26 @@ class SongVoter {
                     }
                 }
 
-                // TIME-BASED OSCILLATION - gradient slides back and forth
-                const time = Date.now() / 1000; // Seconds
-                const gradientPhase = Math.sin(time * 0.5) * 0.3; // -0.3 to 0.3 oscillation
-                const gradientStart = Math.max(0, gradientPhase);
-                const gradientEnd = Math.min(1, 1 + gradientPhase);
-
-                // DYNAMIC REACTIVE GRADIENT with time-based movement
-                const gradient = this.visCtx.createLinearGradient(width * gradientStart, 0, width * gradientEnd, 0);
-                const hueShift = avgAmplitude * 40 + Math.sin(time * 2) * 15; // More dynamic hue
-                const satBoost = 65 + avgAmplitude * 25; // 65-90% saturation
-                const lightBoost = 50 + avgAmplitude * 25; // 50-75% lightness
-
-                // Dynamic gradient that pulses and flows with the music
-                gradient.addColorStop(0, `hsl(${baseHue - hueShift}, ${satBoost}%, ${lightBoost}%)`);
-                gradient.addColorStop(0.25, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 15}%)`);
-                gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.6 + avgAmplitude * 0.4})`); // White flash on beats
-                gradient.addColorStop(0.75, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
-                gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
-
                 // In 'both' mode, reduce oscilloscope prominence so bars show through
                 const isBothMode = mode === 'both';
-                const lineOpacity = isBothMode ? 0.7 : 1;
-                const glowStrength = isBothMode ? 3 + avgAmplitude * 2 : 6 + avgAmplitude * 4;
+                const lineOpacity = isBothMode ? 0.6 : 0.9;
+                const glowStrength = isBothMode ? 4 : 8;
 
-                // Draw main oscilloscope line with subtle glow (reduced for luxe feel)
-                const glowColor = isDefaultAccent ? `hsl(${baseHue}, 60%, 60%)` : accentColor;
+                // Draw main oscilloscope line - WHITE ONLY with subtle glow
                 this.visCtx.globalAlpha = lineOpacity;
-                this.visCtx.shadowColor = glowColor;
+                this.visCtx.shadowColor = 'rgba(255, 255, 255, 0.5)';
                 this.visCtx.shadowBlur = glowStrength;
-                this.visCtx.strokeStyle = gradient;
+                this.visCtx.strokeStyle = `rgba(255, 255, 255, ${0.7 + avgAmplitude * 0.3})`;
                 this.visCtx.lineWidth = isBothMode ? 1.5 + avgAmplitude * 0.5 : 2 + avgAmplitude;
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, false);
                 this.visCtx.stroke();
 
-                // Draw mirrored line (below center) - even more subtle
-                this.visCtx.shadowBlur = 4;
-                this.visCtx.lineWidth = 1.5;
-                this.visCtx.globalAlpha = 0.4;
+                // Draw mirrored line (below center) - WHITE ONLY, even more subtle
+                this.visCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.visCtx.shadowBlur = 2;
+                this.visCtx.lineWidth = 1;
+                this.visCtx.globalAlpha = 0.3;
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, true);
                 this.visCtx.stroke();
