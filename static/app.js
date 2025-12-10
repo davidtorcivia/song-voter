@@ -315,7 +315,15 @@ class SongVoter {
 
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        const frequencyData = new Uint8Array(bufferLength);
         const mode = window.VISUALIZER_MODE || 'bars';
+
+        // Trail history for ghost effect
+        const trailHistory = [];
+        const maxTrails = 5;
+
+        // Get accent color
+        const accentColor = this.accentColor || '#a78bfa';
 
         const draw = () => {
             requestAnimationFrame(draw);
@@ -323,58 +331,117 @@ class SongVoter {
             const width = this.visualizer.width / window.devicePixelRatio;
             const height = this.visualizer.height / window.devicePixelRatio;
 
+            // Clear with dark background
             this.visCtx.fillStyle = '#111111';
             this.visCtx.fillRect(0, 0, width, height);
 
-            if (mode === 'wave') {
-                // Wave/oscilloscope mode
-                this.analyser.getByteTimeDomainData(dataArray);
+            // Get appropriate data
+            this.analyser.getByteTimeDomainData(dataArray);
+            this.analyser.getByteFrequencyData(frequencyData);
 
-                this.visCtx.lineWidth = 2;
-                this.visCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                this.visCtx.beginPath();
-
-                const sliceWidth = width / bufferLength;
-                let x = 0;
-
-                for (let i = 0; i < bufferLength; i++) {
-                    const v = dataArray[i] / 128.0;
-                    const y = (v * height) / 2;
-
-                    if (i === 0) {
-                        this.visCtx.moveTo(x, y);
-                    } else {
-                        this.visCtx.lineTo(x, y);
-                    }
-                    x += sliceWidth;
-                }
-
-                this.visCtx.lineTo(width, height / 2);
-                this.visCtx.stroke();
-            } else {
-                // Bars mode (default) - need frequency data
-                this.analyser.getByteFrequencyData(dataArray);
-
+            // Draw bars first if mode is 'bars' or 'both'
+            if (mode === 'bars' || mode === 'both') {
                 const barCount = 48;
                 const barWidth = (width / barCount) * 0.8;
                 const gap = (width / barCount) * 0.2;
 
                 for (let i = 0; i < barCount; i++) {
                     const idx = Math.floor(i * bufferLength / barCount);
-                    const value = dataArray[idx] / 255;
+                    const value = frequencyData[idx] / 255;
                     const barHeight = value * height * 0.85;
                     const x = i * (barWidth + gap);
 
-                    // Monochrome visualizer (Vote Page)
-                    const lightness = 30 + value * 60;
-                    this.visCtx.fillStyle = `hsl(0, 0%, ${lightness}%)`;
-
+                    // Monochrome visualizer with subtle coloring
+                    const lightness = 20 + value * 40;
+                    const alpha = mode === 'both' ? 0.5 : 0.8;
+                    this.visCtx.fillStyle = `hsla(0, 0%, ${lightness}%, ${alpha})`;
                     this.visCtx.fillRect(x, height - barHeight, barWidth, barHeight);
                 }
+            }
+
+            // Draw oscilloscope if mode is 'wave' or 'both'
+            if (mode === 'wave' || mode === 'both') {
+                // Store current frame points for trails
+                const currentPoints = [];
+                const sliceWidth = width / bufferLength;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = (v * height) / 2;
+                    currentPoints.push({ x: i * sliceWidth, y });
+                }
+
+                // Add to trail history
+                trailHistory.unshift(currentPoints);
+                if (trailHistory.length > maxTrails) trailHistory.pop();
+
+                // Draw trails (oldest to newest, fading)
+                for (let t = trailHistory.length - 1; t >= 0; t--) {
+                    const points = trailHistory[t];
+                    const trailAlpha = (1 - t / maxTrails) * 0.3;
+
+                    if (t > 0) {
+                        this.visCtx.strokeStyle = `rgba(167, 139, 250, ${trailAlpha})`;
+                        this.visCtx.lineWidth = 1;
+                        this.visCtx.beginPath();
+                        this.drawSmoothCurve(points, false);
+                        this.visCtx.stroke();
+                    }
+                }
+
+                // Create gradient for main line
+                const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
+                gradient.addColorStop(0, accentColor);
+                gradient.addColorStop(0.5, '#ffffff');
+                gradient.addColorStop(1, accentColor);
+
+                // Draw main oscilloscope line with glow
+                this.visCtx.shadowColor = accentColor;
+                this.visCtx.shadowBlur = 15;
+                this.visCtx.strokeStyle = gradient;
+                this.visCtx.lineWidth = 2.5;
+                this.visCtx.beginPath();
+                this.drawSmoothCurve(currentPoints, false);
+                this.visCtx.stroke();
+
+                // Draw mirrored line (below center)
+                this.visCtx.shadowBlur = 10;
+                this.visCtx.lineWidth = 1.5;
+                this.visCtx.globalAlpha = 0.4;
+                this.visCtx.beginPath();
+                this.drawSmoothCurve(currentPoints, true);
+                this.visCtx.stroke();
+
+                // Reset
+                this.visCtx.shadowBlur = 0;
+                this.visCtx.globalAlpha = 1;
             }
         };
 
         draw();
+    }
+
+    // Helper: Draw smooth bezier curve through points
+    drawSmoothCurve(points, mirror = false) {
+        if (points.length < 2) return;
+
+        const height = this.visualizer.height / window.devicePixelRatio;
+        const centerY = height / 2;
+
+        // Transform Y for mirroring
+        const getY = (y) => mirror ? centerY + (centerY - y) : y;
+
+        this.visCtx.moveTo(points[0].x, getY(points[0].y));
+
+        for (let i = 1; i < points.length - 1; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2;
+            const yc = (getY(points[i].y) + getY(points[i + 1].y)) / 2;
+            this.visCtx.quadraticCurveTo(points[i].x, getY(points[i].y), xc, yc);
+        }
+
+        // Last point
+        const last = points[points.length - 1];
+        this.visCtx.lineTo(last.x, getY(last.y));
     }
 
     // === Auto Load ===

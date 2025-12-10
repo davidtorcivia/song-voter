@@ -391,7 +391,10 @@
                 </div>
                 <select id="visualizerMode" class="setting-select">
                     <option value="bars" {% if settings.visualizer_mode=='bars' %}selected{% endif %}>Bars</option>
-                    <option value="wave" {% if settings.visualizer_mode=='wave' %}selected{% endif %}>Wave</option>
+                    <option value="wave" {% if settings.visualizer_mode=='wave' %}selected{% endif %}>Oscilloscope
+                    </option>
+                    <option value="both" {% if settings.visualizer_mode=='both' %}selected{% endif %}>Both (Bars +
+                        Oscilloscope)</option>
                 </select>
             </div>
         </div>

@@ -473,7 +473,31 @@
                 const ctx = this.canvas.getContext('2d');
                 const bufferLength = this.analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
+                const frequencyData = new Uint8Array(bufferLength);
                 const mode = window.VISUALIZER_MODE || 'bars';
+
+                // Trail history for ghost effect
+                const trailHistory = [];
+                const maxTrails = 5;
+
+                // Get accent color
+                const accentColor = this.accentColor || '#a78bfa';
+
+                // Helper: Draw smooth bezier curve
+                const drawSmoothCurve = (points, mirror, height) => {
+                    if (points.length < 2) return;
+                    const centerY = height / 2;
+                    const getY = (y) => mirror ? centerY + (centerY - y) : y;
+
+                    ctx.moveTo(points[0].x, getY(points[0].y));
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const xc = (points[i].x + points[i + 1].x) / 2;
+                        const yc = (getY(points[i].y) + getY(points[i + 1].y)) / 2;
+                        ctx.quadraticCurveTo(points[i].x, getY(points[i].y), xc, yc);
+                    }
+                    const last = points[points.length - 1];
+                    ctx.lineTo(last.x, getY(last.y));
+                };
 
                 const draw = () => {
                     requestAnimationFrame(draw);
@@ -491,52 +515,89 @@
                     ctx.fillStyle = 'rgba(15, 15, 20, 0.4)';
                     ctx.fillRect(0, 0, width, height);
 
-                    if (mode === 'wave') {
-                        this.analyser.getByteTimeDomainData(dataArray);
+                    // Get appropriate data
+                    this.analyser.getByteTimeDomainData(dataArray);
+                    this.analyser.getByteFrequencyData(frequencyData);
 
-                        ctx.lineWidth = 2;
-                        ctx.strokeStyle = 'rgba(167, 139, 250, 0.8)'; // Purple-ish
-                        ctx.beginPath();
-
-                        const sliceWidth = width / bufferLength;
-                        let x = 0;
-
-                        for (let i = 0; i < bufferLength; i++) {
-                            const v = dataArray[i] / 128.0;
-                            const y = (v * height) / 2;
-
-                            if (i === 0) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
-
-                            x += sliceWidth;
-                        }
-
-                        ctx.lineTo(width, height / 2);
-                        ctx.stroke();
-
-                    } else {
-                        // Bars mode
-                        this.analyser.getByteFrequencyData(dataArray);
-
+                    // Draw bars first if mode is 'bars' or 'both'
+                    if (mode === 'bars' || mode === 'both') {
                         const barCount = 48;
                         const barWidth = (width / barCount) * 0.8;
                         const gap = (width / barCount) * 0.2;
 
                         for (let i = 0; i < barCount; i++) {
                             const idx = Math.floor(i * bufferLength / barCount);
-                            const value = dataArray[idx] / 255;
+                            const value = frequencyData[idx] / 255;
                             const barHeight = value * height * 0.85;
                             const x = i * (barWidth + gap);
 
-                            // Subtle esoteric colors: muted blues and soft purples
-                            const hue = 220 + (i / barCount) * 40; // 220-260 range (blue to purple)
-                            const sat = 35 + value * 25; // Low saturation, increases with intensity
-                            const light = 30 + value * 35; // Soft, not too bright
-                            const alpha = 0.5 + value * 0.4;
+                            // Subtle esoteric colors
+                            const hue = 220 + (i / barCount) * 40;
+                            const sat = 35 + value * 25;
+                            const light = 30 + value * 35;
+                            const alpha = mode === 'both' ? 0.4 : (0.5 + value * 0.4);
 
                             ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
                             ctx.fillRect(x, height - barHeight, barWidth, barHeight);
                         }
+                    }
+
+                    // Draw oscilloscope if mode is 'wave' or 'both'
+                    if (mode === 'wave' || mode === 'both') {
+                        // Store current frame points
+                        const currentPoints = [];
+                        const sliceWidth = width / bufferLength;
+
+                        for (let i = 0; i < bufferLength; i++) {
+                            const v = dataArray[i] / 128.0;
+                            const y = (v * height) / 2;
+                            currentPoints.push({ x: i * sliceWidth, y });
+                        }
+
+                        // Add to trail history
+                        trailHistory.unshift(currentPoints);
+                        if (trailHistory.length > maxTrails) trailHistory.pop();
+
+                        // Draw trails (fading)
+                        for (let t = trailHistory.length - 1; t >= 0; t--) {
+                            const points = trailHistory[t];
+                            const trailAlpha = (1 - t / maxTrails) * 0.3;
+
+                            if (t > 0) {
+                                ctx.strokeStyle = `rgba(167, 139, 250, ${trailAlpha})`;
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                drawSmoothCurve(points, false, height);
+                                ctx.stroke();
+                            }
+                        }
+
+                        // Create gradient for main line
+                        const gradient = ctx.createLinearGradient(0, 0, width, 0);
+                        gradient.addColorStop(0, accentColor);
+                        gradient.addColorStop(0.5, '#ffffff');
+                        gradient.addColorStop(1, accentColor);
+
+                        // Draw main oscilloscope line with glow
+                        ctx.shadowColor = accentColor;
+                        ctx.shadowBlur = 15;
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = 2.5;
+                        ctx.beginPath();
+                        drawSmoothCurve(currentPoints, false, height);
+                        ctx.stroke();
+
+                        // Draw mirrored line
+                        ctx.shadowBlur = 10;
+                        ctx.lineWidth = 1.5;
+                        ctx.globalAlpha = 0.4;
+                        ctx.beginPath();
+                        drawSmoothCurve(currentPoints, true, height);
+                        ctx.stroke();
+
+                        // Reset
+                        ctx.shadowBlur = 0;
+                        ctx.globalAlpha = 1;
                     }
                 };
                 draw();
