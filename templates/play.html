@@ -582,6 +582,13 @@
 
                     // Draw oscilloscope if mode is 'wave' or 'both'
                     if (mode === 'wave' || mode === 'both') {
+                        // Calculate average amplitude for reactive effects
+                        let avgAmplitude = 0;
+                        for (let i = 0; i < bufferLength; i++) {
+                            avgAmplitude += Math.abs(dataArray[i] - 128);
+                        }
+                        avgAmplitude = (avgAmplitude / bufferLength) / 128;
+
                         // Store current frame points
                         const currentPoints = [];
                         const sliceWidth = width / bufferLength;
@@ -596,13 +603,18 @@
                         trailHistory.unshift(currentPoints);
                         if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                        // Draw trails (fading) using accent color
+                        // Better default colors when accent is disabled/white
+                        const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
+                        const baseHue = isDefaultAccent ? 260 : accentHue;
+                        const compHue = isDefaultAccent ? 220 : (accentHue + 180) % 360;
+
+                        // Draw trails (fading)
                         for (let t = trailHistory.length - 1; t >= 0; t--) {
                             const points = trailHistory[t];
-                            const trailAlpha = (1 - t / maxTrails) * 0.4;
+                            const trailAlpha = (1 - t / maxTrails) * 0.3;
 
                             if (t > 0) {
-                                ctx.strokeStyle = `hsla(${accentHue}, 70%, 60%, ${trailAlpha})`;
+                                ctx.strokeStyle = `hsla(${baseHue}, 50%, 50%, ${trailAlpha})`;
                                 ctx.lineWidth = 1;
                                 ctx.beginPath();
                                 drawSmoothCurve(points, false, height);
@@ -610,28 +622,32 @@
                             }
                         }
 
-                        // Create KILLER gradient - accent to white to complementary
+                        // DYNAMIC REACTIVE GRADIENT
                         const gradient = ctx.createLinearGradient(0, 0, width, 0);
-                        const compHue = (accentHue + 180) % 360;
-                        gradient.addColorStop(0, `hsl(${accentHue}, 80%, 65%)`);
-                        gradient.addColorStop(0.25, `hsl(${accentHue}, 90%, 75%)`);
-                        gradient.addColorStop(0.5, '#ffffff');
-                        gradient.addColorStop(0.75, `hsl(${compHue}, 70%, 70%)`);
-                        gradient.addColorStop(1, `hsl(${accentHue}, 80%, 65%)`);
+                        const hueShift = avgAmplitude * 30;
+                        const satBoost = 60 + avgAmplitude * 30;
+                        const lightBoost = 55 + avgAmplitude * 20;
 
-                        // Draw main oscilloscope line with glow
-                        ctx.shadowColor = accentColor;
-                        ctx.shadowBlur = 15;
+                        gradient.addColorStop(0, `hsl(${baseHue - hueShift}, ${satBoost}%, ${lightBoost}%)`);
+                        gradient.addColorStop(0.3, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
+                        gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.7 + avgAmplitude * 0.3})`);
+                        gradient.addColorStop(0.7, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
+                        gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
+
+                        // Draw main oscilloscope line with subtle glow
+                        const glowColor = isDefaultAccent ? `hsl(${baseHue}, 60%, 60%)` : accentColor;
+                        ctx.shadowColor = glowColor;
+                        ctx.shadowBlur = 6 + avgAmplitude * 4;
                         ctx.strokeStyle = gradient;
-                        ctx.lineWidth = 2.5;
+                        ctx.lineWidth = 2 + avgAmplitude;
                         ctx.beginPath();
                         drawSmoothCurve(currentPoints, false, height);
                         ctx.stroke();
 
-                        // Draw mirrored line
-                        ctx.shadowBlur = 10;
+                        // Draw mirrored line - subtle
+                        ctx.shadowBlur = 4;
                         ctx.lineWidth = 1.5;
-                        ctx.globalAlpha = 0.4;
+                        ctx.globalAlpha = 0.3;
                         ctx.beginPath();
                         drawSmoothCurve(currentPoints, true, height);
                         ctx.stroke();

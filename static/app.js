@@ -399,6 +399,13 @@ class SongVoter {
 
             // Draw oscilloscope if mode is 'wave' or 'both'
             if (mode === 'wave' || mode === 'both') {
+                // Calculate average amplitude for reactive effects
+                let avgAmplitude = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    avgAmplitude += Math.abs(dataArray[i] - 128);
+                }
+                avgAmplitude = (avgAmplitude / bufferLength) / 128; // 0-1 range
+
                 // Store current frame points for trails
                 const currentPoints = [];
                 const sliceWidth = width / bufferLength;
@@ -413,13 +420,18 @@ class SongVoter {
                 trailHistory.unshift(currentPoints);
                 if (trailHistory.length > maxTrails) trailHistory.pop();
 
-                // Draw trails (oldest to newest, fading) using accent color
+                // Better default colors when accent is disabled/white
+                const isDefaultAccent = !accentColor || accentColor === '#ffffff' || accentColor === '';
+                const baseHue = isDefaultAccent ? 260 : accentHue; // Default to purple
+                const compHue = isDefaultAccent ? 220 : (accentHue + 180) % 360; // Default to blue
+
+                // Draw trails (oldest to newest, fading)
                 for (let t = trailHistory.length - 1; t >= 0; t--) {
                     const points = trailHistory[t];
-                    const trailAlpha = (1 - t / maxTrails) * 0.4;
+                    const trailAlpha = (1 - t / maxTrails) * 0.3;
 
                     if (t > 0) {
-                        this.visCtx.strokeStyle = `hsla(${accentHue}, 70%, 60%, ${trailAlpha})`;
+                        this.visCtx.strokeStyle = `hsla(${baseHue}, 50%, 50%, ${trailAlpha})`;
                         this.visCtx.lineWidth = 1;
                         this.visCtx.beginPath();
                         this.drawSmoothCurve(points, false);
@@ -427,27 +439,31 @@ class SongVoter {
                     }
                 }
 
-                // Create KILLER gradient - accent to bright white to complementary to accent
+                // DYNAMIC REACTIVE GRADIENT - shifts based on amplitude
                 const gradient = this.visCtx.createLinearGradient(0, 0, width, 0);
-                const compHue = (accentHue + 180) % 360; // Complementary color
-                gradient.addColorStop(0, `hsl(${accentHue}, 80%, 65%)`);
-                gradient.addColorStop(0.25, `hsl(${accentHue}, 90%, 75%)`);
-                gradient.addColorStop(0.5, '#ffffff');
-                gradient.addColorStop(0.75, `hsl(${compHue}, 70%, 70%)`);
-                gradient.addColorStop(1, `hsl(${accentHue}, 80%, 65%)`)
-                gradient.addColorStop(1, accentColor);
+                const hueShift = avgAmplitude * 30; // 0-30 hue shift based on loudness
+                const satBoost = 60 + avgAmplitude * 30; // 60-90% saturation
+                const lightBoost = 55 + avgAmplitude * 20; // 55-75% lightness
 
-                // Draw main oscilloscope line with glow
-                this.visCtx.shadowColor = accentColor;
-                this.visCtx.shadowBlur = 15;
+                // Dynamic gradient that pulses with the music
+                gradient.addColorStop(0, `hsl(${baseHue - hueShift}, ${satBoost}%, ${lightBoost}%)`);
+                gradient.addColorStop(0.3, `hsl(${baseHue}, ${satBoost + 10}%, ${lightBoost + 10}%)`);
+                gradient.addColorStop(0.5, `hsla(0, 0%, 100%, ${0.7 + avgAmplitude * 0.3})`); // White intensity varies
+                gradient.addColorStop(0.7, `hsl(${compHue}, ${satBoost}%, ${lightBoost}%)`);
+                gradient.addColorStop(1, `hsl(${baseHue + hueShift}, ${satBoost}%, ${lightBoost}%)`);
+
+                // Draw main oscilloscope line with subtle glow (reduced for luxe feel)
+                const glowColor = isDefaultAccent ? `hsl(${baseHue}, 60%, 60%)` : accentColor;
+                this.visCtx.shadowColor = glowColor;
+                this.visCtx.shadowBlur = 6 + avgAmplitude * 4; // 6-10 dynamic glow
                 this.visCtx.strokeStyle = gradient;
-                this.visCtx.lineWidth = 2.5;
+                this.visCtx.lineWidth = 2 + avgAmplitude; // 2-3 dynamic line width
                 this.visCtx.beginPath();
                 this.drawSmoothCurve(currentPoints, false);
                 this.visCtx.stroke();
 
-                // Draw mirrored line (below center)
-                this.visCtx.shadowBlur = 10;
+                // Draw mirrored line (below center) - even more subtle
+                this.visCtx.shadowBlur = 4;
                 this.visCtx.lineWidth = 1.5;
                 this.visCtx.globalAlpha = 0.4;
                 this.visCtx.beginPath();
