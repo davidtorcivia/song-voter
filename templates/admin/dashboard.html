@@ -242,7 +242,19 @@
             <a href="/admin/songs" class="btn btn-primary" style="padding: 10px 20px;">Manage Songs &#8594;</a>
         </div>
 
-        <!-- Access & Voting Settings -->
+        <!-- Vote Blocks (All roles) -->
+        <div class="card admin-section">
+            <div class="setting-row" style="border-bottom: none;">
+                <div class="setting-info">
+                    <span class="setting-label">Vote Blocks</span>
+                    <span class="setting-desc">Create private voting links</span>
+                </div>
+                <a href="/admin/blocks" class="btn btn-secondary" style="padding: 8px 16px;">Manage →</a>
+            </div>
+        </div>
+
+        {% if role in ['owner', 'admin'] %}
+        <!-- Access & Voting Settings (admin/owner only) -->
         <div class="card admin-section">
             <h2>Access & Voting</h2>
 
@@ -325,14 +337,6 @@
                         %}>
                     <span class="toggle-slider"></span>
                 </label>
-            </div>
-
-            <div class="setting-row" style="border-bottom: none;">
-                <div class="setting-info">
-                    <span class="setting-label">Vote Blocks</span>
-                    <span class="setting-desc">Create private voting links</span>
-                </div>
-                <a href="/admin/blocks" class="btn btn-secondary" style="padding: 8px 16px;">Manage →</a>
             </div>
         </div>
 
@@ -472,31 +476,43 @@
 
         <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
             Settings</button>
+        {% endif %}
 
 
-        <!-- Admin Users Section -->
+        {% if role in ['owner', 'admin'] %}
+        <!-- Admin Users Section (admin/owner only) -->
         <div class="card admin-section">
-            <h2>Admins</h2>
+            <h2>Users</h2>
 
             <div class="admins-list" id="adminsList">
                 {% for admin in admins %}
-                <div class="admin-item" data-id="{{ admin.id }}">
-                    <span class="admin-name">{{ admin.username }}{% if loop.first %} <small
-                            style="color: var(--text-muted);">(owner)</small>{% endif %}</span>
-                    {% if not loop.first %}
-                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}"
+                <div class="admin-item" data-id="{{ admin.id }}" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="admin-name">{{ admin.username }}</span>
+                    <span class="role-badge" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; 
+                        {% if admin.role == 'owner' %}background: #22c55e; color: #000;
+                        {% elif admin.role == 'admin' %}background: #3b82f6; color: #fff;
+                        {% else %}background: #64748b; color: #fff;{% endif %}">{{ admin.role }}</span>
+                    {% if admin.id != current_admin_id and (role == 'owner' or admin.role != 'owner') %}
+                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}" style="margin-left: auto;"
                         title="Delete">&#10005;</button>
                     {% endif %}
                 </div>
                 {% endfor %}
             </div>
 
-            <div class="add-admin-form" style="margin-top: 12px;">
-                <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1;">
-                <input type="password" id="newAdminPassword" placeholder="Password" style="flex: 1;">
+            <div class="add-admin-form" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1; min-width: 80px;">
+                <input type="password" id="newAdminPassword" placeholder="Password" style="flex: 1; min-width: 80px;">
+                <select id="newAdminRole"
+                    style="padding: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary);">
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                    {% if role == 'owner' %}<option value="owner">Owner</option>{% endif %}
+                </select>
                 <button id="addAdmin" class="btn btn-secondary">Add</button>
             </div>
         </div>
+        {% endif %}
 
         <div class="nav-footer">
             <a href="/" class="nav-link">&#8592; Back</a>
@@ -728,29 +744,34 @@
             }
         }
 
-        // Add Admin
-        document.getElementById('addAdmin').addEventListener('click', async () => {
-            const username = document.getElementById('newAdminUsername').value;
-            const password = document.getElementById('newAdminPassword').value;
+        // Add Admin (only shown for admin/owner)
+        const addAdminBtn = document.getElementById('addAdmin');
+        if (addAdminBtn) {
+            addAdminBtn.addEventListener('click', async () => {
+                const username = document.getElementById('newAdminUsername').value;
+                const password = document.getElementById('newAdminPassword').value;
+                const roleSelect = document.getElementById('newAdminRole');
+                const role = roleSelect ? roleSelect.value : 'editor';
 
-            if (!username || !password) {
-                showModal('Username and password required');
-                return;
-            }
+                if (!username || !password) {
+                    showModal('Username and password required');
+                    return;
+                }
 
-            const res = await fetch('/admin/admins', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                const res = await fetch('/admin/admins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role })
+                });
+
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    const data = await res.json();
+                    showModal(data.error);
+                }
             });
-
-            if (res.ok) {
-                location.reload();
-            } else {
-                const data = await res.json();
-                showModal(data.error);
-            }
-        });
+        }
 
         // Delete Admin
         document.querySelectorAll('.delete-admin').forEach(btn => {

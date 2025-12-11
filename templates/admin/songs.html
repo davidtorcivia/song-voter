@@ -532,6 +532,7 @@
                 <button class="btn btn-secondary" id="scanBtn">Scan</button>
             </div>
 
+            {% if role in ['owner', 'admin'] %}
             <div class="utility-row">
                 <div class="utility-info">
                     <h4>Regenerate All Waveforms</h4>
@@ -555,6 +556,7 @@
                 </div>
                 <button class="btn btn-secondary" id="cleanupBtn">Cleanup</button>
             </div>
+            {% endif %}
         </div>
 
         <div class="nav-footer">

@@ -94,11 +94,39 @@ SUPPORTED_EXTENSIONS = ('.wav', '.mp3', '.flac', '.m4a', '.ogg')
 # ============ Middleware ============
 
 def admin_required(f):
-    """Decorator to require admin authentication."""
+    """Decorator to require any authenticated admin/editor/owner."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('admin'):
             return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_or_owner_required(f):
+    """Decorator to require admin or owner role (excludes editors)."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin = session.get('admin')
+        if not admin:
+            return redirect(url_for('admin_login'))
+        if admin.get('role') not in ('admin', 'owner'):
+            flash('You do not have permission to access this page', 'error')
+            return redirect(url_for('admin_dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def owner_required(f):
+    """Decorator to require owner role only."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin = session.get('admin')
+        if not admin:
+            return redirect(url_for('admin_login'))
+        if admin.get('role') != 'owner':
+            flash('Only owners can access this feature', 'error')
+            return redirect(url_for('admin_dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -651,20 +679,26 @@ def admin_logout():
 @app.route('/admin/')
 @admin_required
 def admin_dashboard():
-    """Admin dashboard."""
+    """Admin dashboard (with role-based visibility)."""
+    admin = session.get('admin', {})
+    role = admin.get('role', 'editor')
+    
     settings = db.get_all_settings()
     songs = db.get_all_songs()
     admins = db.get_all_admins()
+    
     return render_template('admin/dashboard.html', 
                          settings=settings, 
                          songs=songs, 
-                         admins=admins)
+                         admins=admins,
+                         role=role,
+                         current_admin_id=admin.get('id'))
 
 
 @app.route('/admin/settings', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_update_settings():
-    """Update settings."""
+    """Update settings (admin/owner only)."""
     data = request.get_json()
     
     allowed_keys = [
@@ -683,9 +717,9 @@ def admin_update_settings():
 
 
 @app.route('/admin/upload-asset', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_upload_asset():
-    """Upload an asset (favicon, OG image)."""
+    """Upload an asset (favicon, OG image) - admin/owner only."""
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
     
@@ -717,9 +751,9 @@ def admin_upload_asset():
 
 
 @app.route('/admin/delete-asset/<asset_type>', methods=['DELETE'])
-@admin_required
+@admin_or_owner_required
 def admin_delete_asset(asset_type):
-    """Delete an uploaded asset."""
+    """Delete an uploaded asset (admin/owner only)."""
     if asset_type not in ['favicon', 'og_image']:
         return jsonify({'error': 'Invalid asset type'}), 400
     
@@ -789,7 +823,18 @@ def admin_upload_song():
 @app.route('/admin/songs/<int:song_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_song(song_id):
-    """Delete a song completely - source file, normalized, waveform, and database."""
+    """Delete a song (with permission check for editors)."""
+    admin = session.get('admin', {})
+    admin_id = admin.get('id')
+    role = admin.get('role', 'editor')
+    
+    # Check permission (editors can only delete their own songs)
+    can_delete, song = db.can_delete_song(song_id, admin_id, role)
+    if not can_delete:
+        if not song:
+            return jsonify({'error': 'Song not found'}), 404
+        return jsonify({'error': 'You can only delete songs you uploaded'}), 403
+    
     full_path = db.delete_song(song_id)
     
     if full_path:
@@ -822,8 +867,13 @@ def admin_delete_song(song_id):
 @app.route('/admin/songs')
 @admin_required
 def admin_songs_page():
-    """Dedicated song management page."""
-    songs = db.get_all_songs()
+    """Dedicated song management page (role-filtered)."""
+    admin = session.get('admin', {})
+    admin_id = admin.get('id')
+    role = admin.get('role', 'editor')
+    
+    # Get songs filtered by role (editors only see their own)
+    songs = db.get_songs_for_user(admin_id, role)
     base_names = db.get_unique_base_names()
     
     # Enhance songs with file status and vote counts
@@ -854,7 +904,8 @@ def admin_songs_page():
     return render_template('admin/songs.html', 
                          songs=enhanced_songs, 
                          base_names=base_names,
-                         total_votes=total_votes)
+                         total_votes=total_votes,
+                         role=role)
 
 
 @app.route('/admin/songs/upload', methods=['POST'])
@@ -898,8 +949,9 @@ def admin_songs_upload():
     except Exception as e:
         return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
     
-    # Add to database
-    song_id = db.add_song(filename, full_path)
+    # Add to database with current user as uploader
+    admin_id = session.get('admin', {}).get('id')
+    song_id = db.add_song(filename, full_path, uploaded_by=admin_id)
     
     # Process in background - normalization and waveform
     processing_errors = []
@@ -927,9 +979,9 @@ def admin_songs_upload():
 
 
 @app.route('/admin/songs/regenerate-waveforms', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_regenerate_waveforms():
-    """Regenerate waveform data for all songs."""
+    """Regenerate waveform data for all songs (admin/owner only)."""
     songs = db.get_all_songs()
     regenerated = 0
     errors = []
@@ -955,9 +1007,9 @@ def admin_regenerate_waveforms():
 
 
 @app.route('/admin/songs/renormalize', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_renormalize_songs():
-    """Re-normalize audio for all songs."""
+    """Re-normalize audio for all songs (admin/owner only)."""
     songs = db.get_all_songs()
     renormalized = 0
     errors = []
@@ -986,9 +1038,9 @@ def admin_renormalize_songs():
 
 
 @app.route('/admin/songs/cleanup', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_cleanup_orphans():
-    """Clean up orphan normalized and waveform files."""
+    """Clean up orphan normalized and waveform files (admin/owner only)."""
     songs = db.get_all_songs()
     
     # Build set of valid paths
@@ -1035,42 +1087,57 @@ def admin_cleanup_orphans():
 
 
 @app.route('/admin/admins', methods=['POST'])
-@admin_required
+@admin_or_owner_required
 def admin_create_admin():
-    """Create a new admin."""
+    """Create a new admin (admin/owner only)."""
     data = request.get_json()
     username = data.get('username', '')
     password = data.get('password', '')
+    role = data.get('role', 'editor')
     
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
     
-    admin_id = db.create_admin(username, password)
+    # Only owners can create owners
+    current_role = session.get('admin', {}).get('role')
+    if role == 'owner' and current_role != 'owner':
+        return jsonify({'error': 'Only owners can create other owners'}), 403
+    
+    admin_id = db.create_admin(username, password, role)
     if admin_id:
-        return jsonify({'success': True, 'id': admin_id})
+        return jsonify({'success': True, 'id': admin_id, 'role': role})
     return jsonify({'error': 'Username already exists'}), 400
 
 
-@app.route('/admin/admins/<int:admin_id>', methods=['DELETE'])
-@admin_required
-def admin_delete_admin(admin_id):
-    """Delete an admin."""
-    # Prevent deleting yourself
-    if session.get('admin', {}).get('id') == admin_id:
-        return jsonify({'error': 'Cannot delete yourself'}), 400
+@app.route('/admin/admins/<int:admin_id>/role', methods=['PUT'])
+@owner_required
+def admin_update_role(admin_id):
+    """Update an admin's role (owner only)."""
+    data = request.get_json()
+    new_role = data.get('role')
     
-    # Ensure at least one admin remains
-    if db.admin_count() <= 1:
-        return jsonify({'error': 'Cannot delete the last admin'}), 400
+    if not new_role:
+        return jsonify({'error': 'Role is required'}), 400
     
-    # Protect first admin (owner)
-    first_admin = db.get_first_admin()
-    if first_admin and first_admin['id'] == admin_id:
-        return jsonify({'error': 'Cannot delete the owner admin'}), 400
+    requesting_admin_id = session.get('admin', {}).get('id')
+    success, error = db.update_admin_role(admin_id, new_role, requesting_admin_id)
     
-    if db.delete_admin(admin_id):
+    if success:
         return jsonify({'success': True})
-    return jsonify({'error': 'Admin not found'}), 404
+    return jsonify({'error': error}), 400
+
+
+@app.route('/admin/admins/<int:admin_id>', methods=['DELETE'])
+@admin_or_owner_required
+def admin_delete_admin(admin_id):
+    """Delete an admin (admin/owner only, with hierarchy protection)."""
+    requesting_admin_id = session.get('admin', {}).get('id')
+    
+    success, error = db.delete_admin(admin_id, requesting_admin_id)
+    
+    if success:
+        return jsonify({'success': True})
+    return jsonify({'error': error}), 400
 
 
 # ============ Vote Block Admin Routes ============
@@ -1078,16 +1145,20 @@ def admin_delete_admin(admin_id):
 @app.route('/admin/blocks')
 @admin_required
 def admin_blocks():
-    """Vote blocks management page."""
-    # Determine if current admin is owner (first admin)
+    """Vote blocks management page (role-filtered)."""
     admin_info = session.get('admin', {})
     admin_id = admin_info.get('id')
-    first_admin = db.get_first_admin()
-    is_owner = first_admin and first_admin.get('id') == admin_id
+    role = admin_info.get('role', 'editor')
+    is_owner_or_admin = role in ('owner', 'admin')
     
-    blocks = db.get_all_vote_blocks(admin_id=admin_id, is_owner=is_owner)
-    songs = db.get_all_songs()
-    return render_template('admin/blocks.html', blocks=blocks, songs=songs, is_owner=is_owner)
+    # Editors only see their own blocks, owners/admins see all
+    blocks = db.get_all_vote_blocks(admin_id=admin_id, is_owner=is_owner_or_admin)
+    
+    # Get songs filtered by role for the song selector
+    songs = db.get_songs_for_user(admin_id, role)
+    
+    return render_template('admin/blocks.html', blocks=blocks, songs=songs, 
+                          is_owner=is_owner_or_admin, role=role)
 
 
 

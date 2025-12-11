@@ -60,12 +60,13 @@ def init_db():
         )
     ''')
     
-    # Admin users table
+    # Admin users table (role: owner, admin, editor)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'editor',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -181,14 +182,37 @@ def init_db():
             cursor.execute("UPDATE songs SET slug = ? WHERE id = ?", (slug, row['id']))
         print("Migration: Generated slugs for existing songs")
     
-    # Create initial admin from environment if specified
+    # Migration: Add uploaded_by column to songs table (tracks who uploaded each song)
+    if 'uploaded_by' not in song_columns:
+        cursor.execute("ALTER TABLE songs ADD COLUMN uploaded_by INTEGER REFERENCES admins(id)")
+        print("Migration: Added uploaded_by column to songs table")
+    
+    # Migration: Add role column to admins table
+    cursor.execute("PRAGMA table_info(admins)")
+    admin_columns = [col[1] for col in cursor.fetchall()]
+    if 'role' not in admin_columns:
+        cursor.execute("ALTER TABLE admins ADD COLUMN role TEXT NOT NULL DEFAULT 'editor'")
+        print("Migration: Added role column to admins table")
+        # Set first admin (lowest ID) as owner, all others as admin
+        cursor.execute("SELECT id FROM admins ORDER BY id ASC")
+        admins = cursor.fetchall()
+        for i, admin_row in enumerate(admins):
+            if i == 0:
+                cursor.execute("UPDATE admins SET role = 'owner' WHERE id = ?", (admin_row['id'],))
+                print(f"Migration: Set admin ID {admin_row['id']} as owner")
+            else:
+                cursor.execute("UPDATE admins SET role = 'admin' WHERE id = ?", (admin_row['id'],))
+                print(f"Migration: Set admin ID {admin_row['id']} as admin")
+        print("Migration: Assigned roles to existing admins")
+    
+    # Create initial admin from environment if specified (always as owner)
     admin_user = os.environ.get('ADMIN_USER')
     admin_pass = os.environ.get('ADMIN_PASS')
     if admin_user and admin_pass:
         try:
             cursor.execute(
-                'INSERT OR IGNORE INTO admins (username, password_hash) VALUES (?, ?)',
-                (admin_user, generate_password_hash(admin_pass))
+                'INSERT OR IGNORE INTO admins (username, password_hash, role) VALUES (?, ?, ?)',
+                (admin_user, generate_password_hash(admin_pass), 'owner')
             )
         except sqlite3.IntegrityError:
             pass  # Admin already exists
@@ -246,14 +270,16 @@ def get_all_settings():
 
 # ============ Admin Users ============
 
-def create_admin(username, password):
-    """Create a new admin user."""
+def create_admin(username, password, role='editor'):
+    """Create a new admin user with specified role."""
+    if role not in ('owner', 'admin', 'editor'):
+        role = 'editor'
     conn = get_db()
     cursor = conn.cursor()
     try:
         cursor.execute(
-            'INSERT INTO admins (username, password_hash) VALUES (?, ?)',
-            (username, generate_password_hash(password))
+            'INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)',
+            (username, generate_password_hash(password), role)
         )
         conn.commit()
         admin_id = cursor.lastrowid
@@ -264,37 +290,121 @@ def create_admin(username, password):
 
 
 def verify_admin(username, password):
-    """Verify admin credentials. Returns admin dict or None."""
+    """Verify admin credentials. Returns admin dict with role or None."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, username, password_hash FROM admins WHERE username = ?', (username,))
+    cursor.execute('SELECT id, username, password_hash, role FROM admins WHERE username = ?', (username,))
     row = cursor.fetchone()
     conn.close()
     
     if row and check_password_hash(row['password_hash'], password):
-        return {'id': row['id'], 'username': row['username']}
+        return {'id': row['id'], 'username': row['username'], 'role': row['role']}
     return None
 
 
-def get_all_admins():
-    """Get all admin users (without passwords)."""
+def get_admin_by_id(admin_id):
+    """Get admin by ID including role."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, username, created_at FROM admins')
+    cursor.execute('SELECT id, username, role, created_at FROM admins WHERE id = ?', (admin_id,))
+    row = cursor.fetchone()
+    admin = dict(row) if row else None
+    conn.close()
+    return admin
+
+
+def get_all_admins():
+    """Get all admin users (without passwords) including roles."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, role, created_at FROM admins ORDER BY id ASC')
     admins = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return admins
 
 
-def delete_admin(admin_id):
-    """Delete an admin user."""
+def update_admin_role(admin_id, new_role, requesting_admin_id):
+    """
+    Update an admin's role. Returns (success, error_message).
+    Rules:
+    - Only owners can change roles
+    - Cannot demote an owner with lower ID than yourself
+    - Valid roles: owner, admin, editor
+    """
+    if new_role not in ('owner', 'admin', 'editor'):
+        return False, 'Invalid role'
+    
     conn = get_db()
     cursor = conn.cursor()
+    
+    # Get requesting admin
+    cursor.execute('SELECT id, role FROM admins WHERE id = ?', (requesting_admin_id,))
+    requester = cursor.fetchone()
+    if not requester or requester['role'] != 'owner':
+        conn.close()
+        return False, 'Only owners can change roles'
+    
+    # Get target admin
+    cursor.execute('SELECT id, role FROM admins WHERE id = ?', (admin_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        return False, 'Admin not found'
+    
+    # Protect lower-ID owners from demotion by higher-ID owners
+    if target['role'] == 'owner' and target['id'] < requesting_admin_id:
+        conn.close()
+        return False, 'Cannot demote an owner with seniority'
+    
+    # Cannot demote yourself
+    if admin_id == requesting_admin_id and new_role != 'owner':
+        conn.close()
+        return False, 'Cannot demote yourself'
+    
+    cursor.execute('UPDATE admins SET role = ? WHERE id = ?', (new_role, admin_id))
+    conn.commit()
+    conn.close()
+    return True, None
+
+
+def delete_admin(admin_id, requesting_admin_id=None):
+    """
+    Delete an admin user. Returns (success, error_message).
+    Rules:
+    - Cannot delete yourself
+    - Cannot delete an owner with lower ID than yourself
+    - Must have at least one admin remaining
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get target admin
+    cursor.execute('SELECT id, role FROM admins WHERE id = ?', (admin_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        return False, 'Admin not found'
+    
+    # Cannot delete yourself
+    if requesting_admin_id and admin_id == requesting_admin_id:
+        conn.close()
+        return False, 'Cannot delete yourself'
+    
+    # Protect lower-ID owners
+    if requesting_admin_id and target['role'] == 'owner' and target['id'] < requesting_admin_id:
+        conn.close()
+        return False, 'Cannot delete an owner with seniority'
+    
+    # Ensure at least one admin remains
+    cursor.execute('SELECT COUNT(*) as count FROM admins')
+    if cursor.fetchone()['count'] <= 1:
+        conn.close()
+        return False, 'Cannot delete the last admin'
+    
     cursor.execute('DELETE FROM admins WHERE id = ?', (admin_id,))
     conn.commit()
-    deleted = cursor.rowcount > 0
     conn.close()
-    return deleted
+    return True, None
 
 
 def admin_count():
@@ -308,10 +418,10 @@ def admin_count():
 
 
 def get_first_admin():
-    """Get the first (owner) admin by lowest ID."""
+    """Get the first (original owner) admin by lowest ID."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1')
+    cursor.execute('SELECT id, username, role FROM admins ORDER BY id ASC LIMIT 1')
     row = cursor.fetchone()
     admin = dict(row) if row else None
     conn.close()
@@ -320,18 +430,28 @@ def get_first_admin():
 
 # ============ Songs ============
 
-def add_song(filename, full_path):
-    """Add a song to the database."""
+def add_song(filename, full_path, uploaded_by=None):
+    """
+    Add a song to the database.
+    uploaded_by: admin ID who uploaded the song (None = scanned, defaults to first owner)
+    """
     conn = get_db()
     cursor = conn.cursor()
     
     base_name = parse_base_name(filename)
     slug = _generate_song_slug()
     
+    # If no uploader specified (scanned), assign to first owner
+    if uploaded_by is None:
+        cursor.execute("SELECT id FROM admins WHERE role = 'owner' ORDER BY id ASC LIMIT 1")
+        owner_row = cursor.fetchone()
+        if owner_row:
+            uploaded_by = owner_row['id']
+    
     try:
         cursor.execute(
-            'INSERT INTO songs (filename, base_name, full_path, slug) VALUES (?, ?, ?, ?)',
-            (filename, base_name, full_path, slug)
+            'INSERT INTO songs (filename, base_name, full_path, slug, uploaded_by) VALUES (?, ?, ?, ?, ?)',
+            (filename, base_name, full_path, slug, uploaded_by)
         )
         conn.commit()
         song_id = cursor.lastrowid
@@ -368,10 +488,49 @@ def delete_song(song_id):
 
 
 def get_all_songs():
-    """Get all songs from the database."""
+    """Get all songs from the database with uploader info."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs ORDER BY base_name, filename')
+    cursor.execute('''
+        SELECT s.id, s.filename, s.base_name, s.full_path, s.slug, s.uploaded_by,
+               a.username as uploader_name
+        FROM songs s
+        LEFT JOIN admins a ON s.uploaded_by = a.id
+        ORDER BY s.base_name, s.filename
+    ''')
+    songs = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return songs
+
+
+def get_songs_for_user(admin_id, role):
+    """
+    Get songs filtered by user role.
+    - Owners and Admins see all songs
+    - Editors see only their own uploads
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if role in ('owner', 'admin'):
+        cursor.execute('''
+            SELECT s.id, s.filename, s.base_name, s.full_path, s.slug, s.uploaded_by,
+                   a.username as uploader_name
+            FROM songs s
+            LEFT JOIN admins a ON s.uploaded_by = a.id
+            ORDER BY s.base_name, s.filename
+        ''')
+    else:
+        # Editors only see their own songs
+        cursor.execute('''
+            SELECT s.id, s.filename, s.base_name, s.full_path, s.slug, s.uploaded_by,
+                   a.username as uploader_name
+            FROM songs s
+            LEFT JOIN admins a ON s.uploaded_by = a.id
+            WHERE s.uploaded_by = ?
+            ORDER BY s.base_name, s.filename
+        ''', (admin_id,))
+    
     songs = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return songs
@@ -382,7 +541,7 @@ def get_songs_by_base_name(base_name):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
-        'SELECT id, filename, base_name, full_path FROM songs WHERE base_name = ?',
+        'SELECT id, filename, base_name, full_path, uploaded_by FROM songs WHERE base_name = ?',
         (base_name,)
     )
     songs = [dict(row) for row in cursor.fetchall()]
@@ -400,11 +559,12 @@ def get_unique_base_names():
     return names
 
 
+
 def get_song_by_id(song_id):
-    """Get a song by its ID."""
+    """Get a song by its ID including uploaded_by."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs WHERE id = ?', (song_id,))
+    cursor.execute('SELECT id, filename, base_name, full_path, slug, uploaded_by FROM songs WHERE id = ?', (song_id,))
     row = cursor.fetchone()
     song = dict(row) if row else None
     conn.close()
@@ -412,14 +572,32 @@ def get_song_by_id(song_id):
 
 
 def get_song_by_slug(slug):
-    """Get a song by its slug."""
+    """Get a song by its slug including uploaded_by."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs WHERE slug = ?', (slug,))
+    cursor.execute('SELECT id, filename, base_name, full_path, slug, uploaded_by FROM songs WHERE slug = ?', (slug,))
     row = cursor.fetchone()
     song = dict(row) if row else None
     conn.close()
     return song
+
+
+def can_delete_song(song_id, admin_id, role):
+    """
+    Check if an admin can delete a song.
+    - Owners and Admins can delete any song
+    - Editors can only delete their own uploads
+    Returns (can_delete, song) tuple.
+    """
+    song = get_song_by_id(song_id)
+    if not song:
+        return False, None
+    
+    if role in ('owner', 'admin'):
+        return True, song
+    
+    # Editors can only delete their own songs
+    return song.get('uploaded_by') == admin_id, song
 
 
 # ============ Voting ============
