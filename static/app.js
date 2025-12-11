@@ -40,8 +40,21 @@ class SongVoter {
             const res = await fetch('/api/config');
             const config = await res.json();
 
+            // Start with global config
             this.minListenTime = config.min_listen_time || 20;
             this.disableSkip = config.disable_skip || false;
+
+            // Block-specific overrides (if set, they take precedence)
+            if (window.BLOCK_MODE) {
+                if (window.BLOCK_MIN_LISTEN_TIME !== null && window.BLOCK_MIN_LISTEN_TIME !== undefined) {
+                    this.minListenTime = window.BLOCK_MIN_LISTEN_TIME;
+                    console.log('Using block-specific min listen time:', this.minListenTime);
+                }
+                if (window.BLOCK_DISABLE_SKIP !== null && window.BLOCK_DISABLE_SKIP !== undefined) {
+                    this.disableSkip = window.BLOCK_DISABLE_SKIP === 1 || window.BLOCK_DISABLE_SKIP === true;
+                    console.log('Using block-specific disable skip:', this.disableSkip);
+                }
+            }
 
             // Hide skip button if disabled
             if (this.disableSkip && this.skipBtn) {
@@ -719,10 +732,13 @@ class SongVoter {
             this.currentIndex++;
 
             if (this.currentIndex >= this.queue.length) {
-                this.showFeedback('All songs rated!');
-                this.setupSection.style.display = 'block';
-                this.playerSection.style.display = 'none';
-                if (this.pageTitle) this.pageTitle.textContent = 'Song Voter';
+                // Stop audio playback
+                this.audio.pause();
+                this.audio.currentTime = 0;
+                this.stopListenTimer();
+
+                // Show completion screen
+                this.showCompletionScreen();
                 return;
             }
 
@@ -744,6 +760,39 @@ class SongVoter {
                 this.visualizer.style.opacity = '1';
             }
         }, 250);
+    }
+
+    showCompletionScreen() {
+        // Hide player, show completion in the same container
+        this.playerSection.style.display = 'none';
+
+        // Create or show completion section
+        let completionSection = document.getElementById('completionSection');
+        if (!completionSection) {
+            completionSection = document.createElement('div');
+            completionSection.id = 'completionSection';
+            completionSection.className = 'card';
+            completionSection.innerHTML = `
+                <div style="text-align: center; padding: 32px 16px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 16px;">✓</div>
+                    <h2 style="font-size: 1.25rem; font-weight: 500; margin-bottom: 12px; color: var(--text-primary);">
+                        Done
+                    </h2>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+                        ${this.queue.length} song${this.queue.length !== 1 ? 's' : ''} rated. Your input shapes the final cut.
+                    </p>
+                    <div style="width: 60px; height: 2px; background: var(--border); margin: 0 auto;"></div>
+                </div>
+            `;
+            this.setupSection.parentNode.insertBefore(completionSection, this.setupSection.nextSibling);
+        } else {
+            completionSection.style.display = 'block';
+        }
+
+        // Update page title
+        if (this.pageTitle) {
+            this.pageTitle.textContent = 'Complete';
+        }
     }
 
     loadSong(song) {

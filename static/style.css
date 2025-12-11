@@ -388,7 +388,8 @@ h1 {
 
 /* Form Elements */
 select,
-input[type="text"] {
+input[type="text"],
+input[type="number"] {
     width: 100%;
     padding: 14px 16px;
     border: 1px solid var(--border);
@@ -401,6 +402,22 @@ input[type="text"] {
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
+}
+
+/* Number input - restore spinner and style it */
+input[type="number"] {
+    -webkit-appearance: textfield;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: inner-spin-button;
+    opacity: 1;
+    height: 28px;
+    margin-right: 2px;
+    cursor: pointer;
 }
 
 select {
