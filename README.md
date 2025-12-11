@@ -5,40 +5,40 @@ A minimal, blind song voting tool for comparing different versions of audio trac
 ## Features
 
 ### Voting
-- **Blind voting** — Song versions are shuffled for each voter to eliminate order bias
-- **Loudness normalization** — All tracks normalized to -14 dBFS for fair comparison
-- **Two voting modes** — Thumbs up/down and 1-10 rating scale
-- **Minimum listen time** — Configurable requirement before voting is allowed
-- **Skip control** — Optional ability to disable skipping songs
+- **Blind voting** - Song versions are shuffled for each voter to eliminate order bias
+- **Loudness normalization** - All tracks normalized to -14 dBFS for fair comparison
+- **Two voting modes** - Thumbs up/down and 1-10 rating scale
+- **Minimum listen time** - Configurable requirement before voting is allowed
+- **Skip control** - Optional ability to disable skipping songs
 
 ### Vote Blocks
-- **Create shareable vote sessions** — Generate unique links for specific song subsets
-- **Password protection** — Optionally protect vote blocks with passwords
-- **Expiration dates** — Set blocks to expire at a specific date/time
-- **Per-block settings** — Override global min listen time and skip settings per block
-- **Voting restrictions** — Limit by IP address, browser session, or allow unlimited
+- **Create shareable vote sessions** - Generate unique links for specific song subsets
+- **Password protection** - Optionally protect vote blocks with passwords
+- **Expiration dates** - Set blocks to expire at a specific date/time
+- **Per-block settings** - Override global min listen time and skip settings per block
+- **Voting restrictions** - Limit by IP address, browser session, or allow unlimited
 
 ### Results & Analytics
-- **Live results** — View average ratings, thumbs percentages, and vote counts
-- **Agreement scores** — See how consistently voters agree on each song
-- **Controversial indicators** — Highlight songs with high voter disagreement
-- **Rank badges** — Visual indicators for top 3 songs and best version per track
-- **Results visibility** — Control when results are shown (public, hidden, or after voting ends)
+- **Live results** - View average ratings, thumbs percentages, and vote counts
+- **Agreement scores** - See how consistently voters agree on each song
+- **Controversial indicators** - Highlight songs with high voter disagreement
+- **Rank badges** - Visual indicators for top 3 songs and best version per track
+- **Results visibility** - Control when results are shown (public, hidden, or after voting ends)
 
 ### UI/UX
-- **Real-time audio visualizer** — Multiple modes (bars, oscilloscope, or both)
-- **Waveform display** — See song progress with preloaded waveform
-- **Chromecast support** — Cast audio via browser Remote Playback API
-- **Dark mode UI** — Elite dark aesthetic with monospace typography
-- **Mobile responsive** — Optimized for desktop and mobile browsers
-- **Draft auto-save** — Votes saved locally in case of connection issues
+- **Real-time audio visualizer** - Multiple modes (bars, oscilloscope, or both)
+- **Waveform display** - See song progress with preloaded waveform
+- **Chromecast support** - Cast audio via browser Remote Playback API
+- **Dark mode UI** - Elite dark aesthetic with monospace typography
+- **Mobile responsive** - Optimized for desktop and mobile browsers
+- **Draft auto-save** - Votes saved locally in case of connection issues
 
 ### Admin Features
-- **Song management** — Upload, scan, and delete songs
-- **Multi-admin support** — Add additional admin accounts
-- **Branding** — Customize title, description, favicon, OG image, and accent color
-- **Site password** — Optional global password protection
-- **Homepage toggle** — Close voting while keeping vote blocks active
+- **Song management** - Upload, scan, and delete songs
+- **Multi-admin support** - Add additional admin accounts
+- **Branding** - Customize title, description, favicon, OG image, and accent color
+- **Site password** - Optional global password protection
+- **Homepage toggle** - Close voting while keeping vote blocks active
 
 ## Quick Start (Docker)
 
@@ -120,8 +120,8 @@ The part before ` - ` becomes the base name for grouping.
 | `DATABASE_PATH` | `data/song_voter.db` | SQLite database path |
 | `NORMALIZED_DIR` | `normalized/` | Cached normalized audio |
 | `UPLOADS_DIR` | `uploads/` | Uploaded songs and assets |
-| `ADMIN_USER` | — | Initial admin username (optional, can use web setup) |
-| `ADMIN_PASS` | — | Initial admin password (optional, can use web setup) |
+| `ADMIN_USER` | - | Initial admin username (optional, can use web setup) |
+| `ADMIN_PASS` | - | Initial admin password (optional, can use web setup) |
 
 ## API Endpoints
 
@@ -153,13 +153,13 @@ The part before ` - ` becomes the base name for grouping.
 
 When creating a vote block, you can configure:
 
-- **Name** — Display name for the block
-- **Songs** — Select which songs to include
-- **Password** — Optional access password
-- **Expiration** — Optional expiry date/time
-- **Voting Restriction** — `none`, `ip`, or `browser` (session-based)
-- **Disable Skip** — Override global setting (Yes/No/Use global)
-- **Min Listen Time** — Override global setting (empty = use global)
+- **Name** - Display name for the block
+- **Songs** - Select which songs to include
+- **Password** - Optional access password
+- **Expiration** - Optional expiry date/time
+- **Voting Restriction** - `none`, `ip`, or `browser` (session-based)
+- **Disable Skip** - Override global setting (Yes/No/Use global)
+- **Min Listen Time** - Override global setting (empty = use global)
 
 ## License
 

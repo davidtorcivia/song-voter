@@ -7,6 +7,11 @@ __pycache__/
 *.db
 data/
 
+# Audio files
+songs/
+normalized/
+waveforms/
+
 # Virtual environments
 venv/
 .venv/

@@ -819,6 +819,221 @@ def admin_delete_song(song_id):
     return jsonify({'error': 'Song not found'}), 404
 
 
+@app.route('/admin/songs')
+@admin_required
+def admin_songs_page():
+    """Dedicated song management page."""
+    songs = db.get_all_songs()
+    base_names = db.get_unique_base_names()
+    
+    # Enhance songs with file status and vote counts
+    enhanced_songs = []
+    total_votes = 0
+    
+    for song in songs:
+        # Check if normalized version exists
+        normalized_path = audio_normalize.get_normalized_path(song['full_path'])
+        has_normalized = os.path.exists(normalized_path)
+        
+        # Check if waveform exists
+        waveform_path = waveform.get_waveform_path(song['id'])
+        has_waveform = os.path.exists(waveform_path)
+        
+        # Get vote count
+        stats = db.get_song_stats(song['id'])
+        vote_count = stats.get('vote_count', 0)
+        total_votes += vote_count
+        
+        enhanced_songs.append({
+            **song,
+            'has_normalized': has_normalized,
+            'has_waveform': has_waveform,
+            'vote_count': vote_count
+        })
+    
+    return render_template('admin/songs.html', 
+                         songs=enhanced_songs, 
+                         base_names=base_names,
+                         total_votes=total_votes)
+
+
+@app.route('/admin/songs/upload', methods=['POST'])
+@admin_required
+def admin_songs_upload():
+    """Upload a new song file with detailed error feedback."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check extension
+    filename = file.filename
+    if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
+        return jsonify({'error': f'Unsupported format. Use: {", ".join(SUPPORTED_EXTENSIONS)}'}), 400
+    
+    # Ensure songs directory exists and is writable
+    try:
+        os.makedirs(SONGS_DIR, exist_ok=True)
+    except PermissionError:
+        return jsonify({'error': 'Cannot create songs directory - permission denied'}), 500
+    
+    # Check write permissions
+    full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
+    
+    # Security: ensure path is still within SONGS_DIR
+    if not full_path.startswith(os.path.abspath(SONGS_DIR)):
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    # Check if already exists
+    if os.path.exists(full_path):
+        return jsonify({'error': 'File already exists'}), 400
+    
+    # Save file
+    try:
+        file.save(full_path)
+    except PermissionError:
+        return jsonify({'error': 'Cannot save file - permission denied'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+    
+    # Add to database
+    song_id = db.add_song(filename, full_path)
+    
+    # Process in background - normalization and waveform
+    processing_errors = []
+    
+    try:
+        audio_normalize.get_or_normalize(full_path)
+    except Exception as e:
+        processing_errors.append(f'Normalization: {str(e)}')
+    
+    try:
+        waveform.get_or_generate_waveform(full_path, song_id)
+    except Exception as e:
+        processing_errors.append(f'Waveform: {str(e)}')
+    
+    result = {
+        'success': True,
+        'song_id': song_id,
+        'filename': filename
+    }
+    
+    if processing_errors:
+        result['warnings'] = processing_errors
+    
+    return jsonify(result)
+
+
+@app.route('/admin/songs/regenerate-waveforms', methods=['POST'])
+@admin_required
+def admin_regenerate_waveforms():
+    """Regenerate waveform data for all songs."""
+    songs = db.get_all_songs()
+    regenerated = 0
+    errors = []
+    
+    for song in songs:
+        try:
+            # Delete existing waveform first
+            waveform.delete_waveform(song['id'])
+            # Generate new one
+            if os.path.exists(song['full_path']):
+                waveform.generate_waveform(song['full_path'], song['id'])
+                regenerated += 1
+            else:
+                errors.append(f"{song['filename']}: source file missing")
+        except Exception as e:
+            errors.append(f"{song['filename']}: {str(e)}")
+    
+    return jsonify({
+        'success': True,
+        'count': regenerated,
+        'errors': errors if errors else None
+    })
+
+
+@app.route('/admin/songs/renormalize', methods=['POST'])
+@admin_required
+def admin_renormalize_songs():
+    """Re-normalize audio for all songs."""
+    songs = db.get_all_songs()
+    renormalized = 0
+    errors = []
+    
+    for song in songs:
+        try:
+            # Delete existing normalized version
+            normalized_path = audio_normalize.get_normalized_path(song['full_path'])
+            if os.path.exists(normalized_path):
+                os.remove(normalized_path)
+            
+            # Re-normalize
+            if os.path.exists(song['full_path']):
+                audio_normalize.normalize_audio(song['full_path'])
+                renormalized += 1
+            else:
+                errors.append(f"{song['filename']}: source file missing")
+        except Exception as e:
+            errors.append(f"{song['filename']}: {str(e)}")
+    
+    return jsonify({
+        'success': True,
+        'count': renormalized,
+        'errors': errors if errors else None
+    })
+
+
+@app.route('/admin/songs/cleanup', methods=['POST'])
+@admin_required
+def admin_cleanup_orphans():
+    """Clean up orphan normalized and waveform files."""
+    songs = db.get_all_songs()
+    
+    # Build set of valid paths
+    valid_normalized_paths = set()
+    valid_waveform_ids = set()
+    
+    for song in songs:
+        normalized_path = audio_normalize.get_normalized_path(song['full_path'])
+        valid_normalized_paths.add(os.path.basename(normalized_path))
+        valid_waveform_ids.add(str(song['id']))
+    
+    normalized_removed = 0
+    waveforms_removed = 0
+    
+    # Clean up normalized directory
+    normalized_dir = audio_normalize.NORMALIZED_DIR
+    if os.path.exists(normalized_dir):
+        for filename in os.listdir(normalized_dir):
+            if filename not in valid_normalized_paths:
+                try:
+                    os.remove(os.path.join(normalized_dir, filename))
+                    normalized_removed += 1
+                except Exception:
+                    pass
+    
+    # Clean up waveform directory
+    waveform_dir = waveform.WAVEFORM_DIR
+    if os.path.exists(waveform_dir):
+        for filename in os.listdir(waveform_dir):
+            # Waveform files are named {song_id}.json
+            file_id = os.path.splitext(filename)[0]
+            if file_id not in valid_waveform_ids:
+                try:
+                    os.remove(os.path.join(waveform_dir, filename))
+                    waveforms_removed += 1
+                except Exception:
+                    pass
+    
+    return jsonify({
+        'success': True,
+        'normalized_removed': normalized_removed,
+        'waveforms_removed': waveforms_removed
+    })
+
+
 @app.route('/admin/admins', methods=['POST'])
 @admin_required
 def admin_create_admin():

@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Songs - Song Voter</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Admin-specific overrides */
+        .admin-container {
+            max-width: 700px;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal-box p {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        /* Upload drop zone */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+            background: var(--bg-secondary);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .upload-zone.dragover {
+            transform: scale(1.01);
+        }
+
+        .upload-zone-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+
+        .upload-zone-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .upload-zone-hint {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+
+        /* Upload queue */
+        .upload-queue {
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .upload-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+        }
+
+        .upload-item-name {
+            flex: 1;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .upload-item-status {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .upload-item-status.success {
+            color: #22c55e;
+        }
+
+        .upload-item-status.error {
+            color: #ef4444;
+        }
+
+        .upload-item-progress {
+            width: 80px;
+            height: 4px;
+            background: var(--bg-elevated);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .upload-item-progress-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        /* Songs table */
+        .songs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .songs-table th,
+        .songs-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .songs-table th {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .songs-table td {
+            font-size: 0.85rem;
+        }
+
+        .songs-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .song-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .song-checkbox {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-radius: 3px;
+            background: transparent;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .song-checkbox:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .song-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 1px;
+            width: 4px;
+            height: 8px;
+            border: solid var(--bg-primary);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .song-filename {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-status-icons {
+            display: flex;
+            gap: 4px;
+            font-size: 0.7rem;
+        }
+
+        .status-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+        }
+
+        .status-icon.ok {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .status-icon.missing {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .song-base-name {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .song-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Bulk actions bar */
+        .bulk-bar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+        }
+
+        .bulk-bar.visible {
+            display: flex;
+        }
+
+        .bulk-bar-count {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        /* Stats cards */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Utilities section */
+        .utilities-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .utility-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .utility-row:last-child {
+            border-bottom: none;
+        }
+
+        .utility-info h4 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .utility-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            z-index: 1001;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: #22c55e;
+        }
+
+        .toast.error {
+            border-color: #ef4444;
+        }
+
+        /* Scrollable container */
+        .songs-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .songs-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .songs-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .songs-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Alert Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-box">
+            <p id="modalMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <p id="confirmMessage"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeConfirm(false)">Cancel</button>
+                <button class="btn btn-danger" onclick="closeConfirm(true)">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <div class="container admin-container">
+        <div class="admin-header">
+            <h1>Manage Songs</h1>
+            <a href="/admin/" class="btn btn-secondary">← Dashboard</a>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="songCount">{{ songs|length }}</div>
+                <div class="stat-label">Songs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="trackCount">{{ base_names|length }}</div>
+                <div class="stat-label">Tracks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="voteCount">{{ total_votes }}</div>
+                <div class="stat-label">Total Votes</div>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card admin-section">
+            <h2>Upload Songs</h2>
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-zone-icon">&#8593;</div>
+                <div class="upload-zone-text">Drop audio files here or click to browse</div>
+                <div class="upload-zone-hint">Supports: WAV, MP3, FLAC, M4A, OGG</div>
+            </div>
+            <input type="file" id="fileInput" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
+            <div class="upload-queue" id="uploadQueue"></div>
+        </div>
+
+        <!-- Songs List -->
+        <div class="card admin-section">
+            <h2>Songs Library</h2>
+
+            <!-- Bulk Actions -->
+            <div class="bulk-bar" id="bulkBar">
+                <span class="bulk-bar-count"><strong id="selectedCount">0</strong> selected</span>
+                <button class="btn btn-danger" id="bulkDeleteBtn">Delete Selected</button>
+                <button class="btn btn-secondary" id="clearSelectionBtn">Clear</button>
+            </div>
+
+            {% if songs %}
+            <div class="songs-container">
+                <table class="songs-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"></th>
+                            <th>Filename</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 80px;">Votes</th>
+                            <th style="width: 90px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="songsTableBody">
+                        {% for song in songs %}
+                        <tr data-id="{{ song.id }}" data-path="{{ song.full_path }}">
+                            <td>
+                                <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
+                            </td>
+                            <td>
+                                <div class="song-name-cell">
+                                    <div>
+                                        <div class="song-filename">{{ song.filename }}</div>
+                                        <div class="song-base-name">{{ song.base_name }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="song-status-icons">
+                                    <span class="status-icon {{ 'ok' if song.has_normalized else 'missing' }}"
+                                        title="{{ 'Normalized' if song.has_normalized else 'Not normalized' }}">N</span>
+                                    <span class="status-icon {{ 'ok' if song.has_waveform else 'missing' }}"
+                                        title="{{ 'Waveform ready' if song.has_waveform else 'No waveform' }}">W</span>
+                                </div>
+                            </td>
+                            <td>{{ song.vote_count or 0 }}</td>
+                            <td>
+                                <div class="song-actions">
+                                    <a href="/play/{{ song.slug }}" class="btn-icon" title="Play">&#9654;</a>
+                                    <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
+                                        title="Delete">&#10005;</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">♫</div>
+                <p>No songs yet. Upload some audio files to get started!</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Utilities -->
+        <div class="card admin-section">
+            <h2>Utilities</h2>
+
+            <div class="utility-row">
+                <div class="utility-info">
+                    <h4>Scan Songs Folder</h4>
+                    <p>Import audio files from the songs directory</p>
+                </div>
+                <button class="btn btn-secondary" id="scanBtn">Scan</button>
+            </div>
+
+            <div class="utility-row">
+                <div class="utility-info">
+                    <h4>Regenerate All Waveforms</h4>
+                    <p>Recreate waveform data for all songs</p>
+                </div>
+                <button class="btn btn-secondary" id="regenWaveformsBtn">Regenerate</button>
+            </div>
+
+            <div class="utility-row">
+                <div class="utility-info">
+                    <h4>Re-normalize All Songs</h4>
+                    <p>Recreate normalized audio for all songs</p>
+                </div>
+                <button class="btn btn-secondary" id="renormalizeBtn">Re-normalize</button>
+            </div>
+
+            <div class="utility-row">
+                <div class="utility-info">
+                    <h4>Cleanup Orphan Files</h4>
+                    <p>Remove orphaned normalized/waveform files</p>
+                </div>
+                <button class="btn btn-secondary" id="cleanupBtn">Cleanup</button>
+            </div>
+        </div>
+
+        <div class="nav-footer">
+            <a href="/admin/" class="nav-link">&#8592; Dashboard</a>
+            <a href="/results" class="nav-link">Results</a>
+        </div>
+    </div>
+
+    <script>
+        // Modal functions
+        let confirmCallback = null;
+
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modal').classList.add('visible');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('visible');
+        }
+
+        function showConfirm(message) {
+            return new Promise(resolve => {
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('visible');
+                confirmCallback = resolve;
+            });
+        }
+
+        function closeConfirm(result) {
+            document.getElementById('confirmModal').classList.remove('visible');
+            if (confirmCallback) {
+                confirmCallback(result);
+                confirmCallback = null;
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast visible ' + type;
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        // Upload handling
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadQueue = document.getElementById('uploadQueue');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        async function handleFiles(files) {
+            if (!files.length) return;
+
+            for (const file of files) {
+                const item = createUploadItem(file.name);
+                uploadQueue.appendChild(item);
+
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch('/admin/songs/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        updateUploadItem(item, 'success', 'Uploaded');
+                    } else {
+                        updateUploadItem(item, 'error', data.error || 'Failed');
+                    }
+                } catch (err) {
+                    updateUploadItem(item, 'error', 'Network error');
+                }
+            }
+
+            // Reload after short delay to show new songs
+            setTimeout(() => location.reload(), 1500);
+        }
+
+        function createUploadItem(filename) {
+            const div = document.createElement('div');
+            div.className = 'upload-item';
+            div.innerHTML = `
+                <span class="upload-item-name">${filename}</span>
+                <div class="upload-item-progress">
+                    <div class="upload-item-progress-bar" style="width: 50%"></div>
+                </div>
+                <span class="upload-item-status">Uploading...</span>
+            `;
+            return div;
+        }
+
+        function updateUploadItem(item, status, message) {
+            const progressBar = item.querySelector('.upload-item-progress-bar');
+            const statusSpan = item.querySelector('.upload-item-status');
+
+            if (status === 'success') {
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#22c55e';
+            } else if (status === 'error') {
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#ef4444';
+            }
+
+            statusSpan.textContent = message;
+            statusSpan.className = 'upload-item-status ' + status;
+        }
+
+        // Selection handling
+        const checkboxes = document.querySelectorAll('.song-checkbox');
+        const bulkBar = document.getElementById('bulkBar');
+        const selectedCount = document.getElementById('selectedCount');
+
+        function updateBulkBar() {
+            const checked = document.querySelectorAll('.song-checkbox:checked').length;
+            selectedCount.textContent = checked;
+            bulkBar.classList.toggle('visible', checked > 0);
+        }
+
+        checkboxes.forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+        document.getElementById('clearSelectionBtn').addEventListener('click', () => {
+            checkboxes.forEach(cb => cb.checked = false);
+            updateBulkBar();
+        });
+
+        // Bulk delete
+        document.getElementById('bulkDeleteBtn').addEventListener('click', async () => {
+            const selected = [...document.querySelectorAll('.song-checkbox:checked')];
+            if (!selected.length) return;
+
+            const confirmed = await showConfirm(`Delete ${selected.length} song(s)? This will remove all associated files and votes.`);
+            if (!confirmed) return;
+
+            let deleted = 0;
+            let errors = [];
+
+            for (const cb of selected) {
+                try {
+                    const res = await fetch(`/admin/songs/${cb.dataset.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+
+                    if (res.ok) {
+                        deleted++;
+                        cb.closest('tr').remove();
+                    } else {
+                        errors.push(data.error || 'Unknown error');
+                    }
+                } catch (err) {
+                    errors.push(err.message);
+                }
+            }
+
+            updateBulkBar();
+
+            if (errors.length > 0) {
+                showModal(`Deleted ${deleted} song(s). ${errors.length} error(s): ${errors[0]}`);
+            } else {
+                showToast(`Deleted ${deleted} song(s)`, 'success');
+            }
+        });
+
+        // Individual delete
+        document.querySelectorAll('.delete-song').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const confirmed = await showConfirm('Delete this song and all its files?');
+                if (!confirmed) return;
+
+                const id = e.target.dataset.id;
+                try {
+                    const res = await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
+                    const data = await res.json();
+
+                    if (res.ok) {
+                        e.target.closest('tr').remove();
+                        showToast('Song deleted', 'success');
+                    } else {
+                        showModal(data.error || 'Failed to delete song');
+                    }
+                } catch (err) {
+                    showModal('Network error');
+                }
+            });
+        });
+
+        // Scan folder
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            document.getElementById('scanBtn').disabled = true;
+            document.getElementById('scanBtn').textContent = 'Scanning...';
+
+            try {
+                const res = await fetch('/api/scan', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Scanned ${data.count} songs`, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showModal(data.error || 'Scan failed');
+                }
+            } catch (err) {
+                showModal('Network error');
+            }
+
+            document.getElementById('scanBtn').disabled = false;
+            document.getElementById('scanBtn').textContent = 'Scan';
+        });
+
+        // Regenerate waveforms
+        document.getElementById('regenWaveformsBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('regenWaveformsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Working...';
+
+            try {
+                const res = await fetch('/admin/songs/regenerate-waveforms', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Regenerated ${data.count} waveforms`, 'success');
+                } else {
+                    showModal(data.error || 'Failed');
+                }
+            } catch (err) {
+                showModal('Network error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Regenerate';
+        });
+
+        // Re-normalize
+        document.getElementById('renormalizeBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('renormalizeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Working...';
+
+            try {
+                const res = await fetch('/admin/songs/renormalize', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(`Re-normalized ${data.count} songs`, 'success');
+                } else {
+                    showModal(data.error || 'Failed');
+                }
+            } catch (err) {
+                showModal('Network error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Re-normalize';
+        });
+
+        // Cleanup orphans
+        document.getElementById('cleanupBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('cleanupBtn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning...';
+
+            try {
+                const res = await fetch('/admin/songs/cleanup', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    const msg = `Cleaned up ${data.normalized_removed} normalized files, ${data.waveforms_removed} waveform files`;
+                    showToast(msg, 'success');
+                } else {
+                    showModal(data.error || 'Cleanup failed');
+                }
+            } catch (err) {
+                showModal('Network error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Cleanup';
+        });
+    </script>
+</body>
+
+</html>

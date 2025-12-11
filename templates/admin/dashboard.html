@@ -233,6 +233,15 @@
             <a href="/admin/logout" class="btn btn-secondary">Logout</a>
         </div>
 
+        <!-- Songs Section (Primary) -->
+        <div class="card admin-section" style="border-left: 3px solid var(--accent);">
+            <h2>Manage Songs ({{ songs|length }})</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+                Upload, delete, and manage your audio files.
+            </p>
+            <a href="/admin/songs" class="btn btn-primary" style="padding: 10px 20px;">Manage Songs &#8594;</a>
+        </div>
+
         <!-- Access & Voting Settings -->
         <div class="card admin-section">
             <h2>Access & Voting</h2>
@@ -464,36 +473,6 @@
         <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
             Settings</button>
 
-        <!-- Songs Section -->
-        <div class="card admin-section">
-            <h2>Songs ({{ songs|length }})</h2>
-
-            <div class="actions-bar">
-                <button id="scanSongs" class="btn btn-secondary">Scan Folder</button>
-                <input type="file" id="songUpload" accept=".wav,.mp3,.flac,.m4a,.ogg" multiple hidden>
-                <button id="uploadBtn" class="btn btn-secondary">Upload</button>
-                <span id="uploadStatus" style="font-size: 0.75rem; color: var(--text-muted);"></span>
-            </div>
-
-            <div class="bulk-delete-bar" id="bulkDeleteBar">
-                <span><strong id="selectedCount">0</strong> selected</span>
-                <button id="bulkDeleteBtn" class="btn btn-danger">Delete</button>
-            </div>
-
-            <div class="songs-list" id="songsList" style="max-height: 300px; overflow-y: auto;">
-                {% for song in songs %}
-                <div class="song-item" data-id="{{ song.id }}">
-                    <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
-                    <span class="song-name">{{ song.filename }}</span>
-                    <div class="song-actions">
-                        <a href="/play/{{ song.slug }}" class="btn-icon" title="Play">&#9654;</a>
-                        <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
-                            title="Delete">&#10005;</button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
 
         <!-- Admin Users Section -->
         <div class="card admin-section">
@@ -748,96 +727,6 @@
                 location.reload();
             }
         }
-
-        // Scan Songs
-        document.getElementById('scanSongs').addEventListener('click', async () => {
-            const res = await fetch('/api/scan', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                showModal(`Scanned ${data.count} songs`);
-                setTimeout(() => location.reload(), 1000);
-            }
-        });
-
-        // Upload Songs
-        const uploadBtn = document.getElementById('uploadBtn');
-        const songUpload = document.getElementById('songUpload');
-        const uploadStatus = document.getElementById('uploadStatus');
-
-        uploadBtn.addEventListener('click', () => songUpload.click());
-
-        songUpload.addEventListener('change', async (e) => {
-            const files = e.target.files;
-            if (!files.length) return;
-
-            uploadBtn.disabled = true;
-            let uploaded = 0;
-
-            for (const file of files) {
-                uploadStatus.textContent = `Uploading ${file.name}...`;
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    const res = await fetch('/admin/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (res.ok) uploaded++;
-                } catch (err) { }
-            }
-
-            uploadBtn.disabled = false;
-            songUpload.value = '';
-            uploadStatus.textContent = `Uploaded ${uploaded} file(s)`;
-
-            if (uploaded > 0) {
-                setTimeout(() => location.reload(), 1000);
-            }
-        });
-
-        // Bulk Select
-        const checkboxes = document.querySelectorAll('.song-checkbox');
-        const bulkDeleteBar = document.getElementById('bulkDeleteBar');
-        const selectedCount = document.getElementById('selectedCount');
-
-        function updateBulkBar() {
-            const checked = document.querySelectorAll('.song-checkbox:checked').length;
-            selectedCount.textContent = checked;
-            bulkDeleteBar.classList.toggle('visible', checked > 0);
-        }
-
-        checkboxes.forEach(cb => cb.addEventListener('change', updateBulkBar));
-
-        // Bulk Delete
-        document.getElementById('bulkDeleteBtn').addEventListener('click', async () => {
-            const selected = [...document.querySelectorAll('.song-checkbox:checked')];
-            if (!selected.length) return;
-
-            const confirmed = await showConfirm(`Delete ${selected.length} song(s)?`);
-            if (!confirmed) return;
-
-            for (const cb of selected) {
-                await fetch(`/admin/songs/${cb.dataset.id}`, { method: 'DELETE' });
-            }
-            location.reload();
-        });
-
-        // Delete Song (individual)
-        document.querySelectorAll('.delete-song').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const confirmed = await showConfirm('Delete this song?');
-                if (!confirmed) return;
-
-                const id = e.target.dataset.id;
-                const res = await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
-
-                if (res.ok) {
-                    e.target.closest('.song-item').remove();
-                }
-            });
-        });
 
         // Add Admin
         document.getElementById('addAdmin').addEventListener('click', async () => {
