@@ -24,9 +24,10 @@
         }
 
         .not-found-icon {
-            font-size: 3rem;
+            font-size: 2rem;
             margin-bottom: 16px;
-            opacity: 0.5;
+            opacity: 0.4;
+            letter-spacing: 0.5em;
         }
 
         .not-found-title {
@@ -41,6 +42,14 @@
             color: var(--text-secondary);
             margin-bottom: 24px;
         }
+
+        .not-found-glyph {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            opacity: 0.3;
+            letter-spacing: 0.3em;
+            margin-bottom: 24px;
+        }
     </style>
     {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
 </head>
@@ -48,10 +57,11 @@
 <body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
     <div class="not-found-page">
         <div class="not-found-card card">
-            <div class="not-found-icon">🔍</div>
-            <h1 class="not-found-title">Not Found</h1>
-            <p class="not-found-message">{{ message or 'The page you\'re looking for doesn\'t exist.' }}</p>
-            <a href="/" class="btn btn-primary" style="width: 100%;">← Back to Home</a>
+            <div class="not-found-icon">&#x2234; &#x2237; &#x2234;</div>
+            <h1 class="not-found-title">Void</h1>
+            <p class="not-found-message">{{ message or 'Nothing exists at this location.' }}</p>
+            <div class="not-found-glyph">&#x25CA; &#x25CB; &#x25CA;</div>
+            <a href="/" class="btn btn-primary" style="width: 100%;">&#x2190; Return</a>
         </div>
     </div>
 </body>
