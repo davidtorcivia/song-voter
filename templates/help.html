@@ -8,6 +8,7 @@
     <meta name="description" content="{{ branding.description }}">
     <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}">
     <link rel="stylesheet" href="/static/style.css">
+    {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
 </head>
 
 <body>

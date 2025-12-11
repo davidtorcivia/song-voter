@@ -70,6 +70,7 @@
             margin-top: 8px;
         }
     </style>
+    {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
 </head>
 
 <body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">

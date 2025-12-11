@@ -1,11 +1,59 @@
 import os
 import secrets
+import time
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, send_file, Response, session, redirect, url_for, flash
 import database as db
 import waveform
 import audio_normalize
+
+
+# ============ Rate Limiter ============
+
+class VoteRateLimiter:
+    """In-memory rate limiter with sliding window and size cap."""
+    
+    def __init__(self, max_votes=30, window_secs=300, max_ips=10000):
+        self.votes = {}  # {ip: [timestamp, timestamp, ...]}
+        self.max_votes = max_votes
+        self.window_secs = window_secs
+        self.max_ips = max_ips
+    
+    def _evict_oldest(self, count):
+        """Evict oldest entries when dict gets too large."""
+        if not self.votes:
+            return
+        # Sort IPs by their oldest timestamp
+        sorted_ips = sorted(self.votes.keys(), key=lambda ip: min(self.votes[ip]) if self.votes[ip] else 0)
+        for ip in sorted_ips[:count]:
+            del self.votes[ip]
+    
+    def check(self, ip):
+        """Check if IP can vote. Returns (allowed, retry_after_secs)."""
+        now = time.time()
+        
+        # Evict old entries if dict too large
+        if len(self.votes) > self.max_ips:
+            self._evict_oldest(int(self.max_ips * 0.25))
+        
+        # Clean old timestamps for this IP
+        if ip in self.votes:
+            self.votes[ip] = [t for t in self.votes[ip] if now - t < self.window_secs]
+            if not self.votes[ip]:
+                del self.votes[ip]
+        
+        # Check limit
+        if ip in self.votes and len(self.votes[ip]) >= self.max_votes:
+            retry_after = self.window_secs - (now - self.votes[ip][0])
+            return False, max(1, int(retry_after))
+        
+        # Record vote
+        self.votes.setdefault(ip, []).append(now)
+        return True, 0
+
+# Global rate limiter instance
+vote_limiter = VoteRateLimiter(max_votes=30, window_secs=300, max_ips=10000)
 
 app = Flask(__name__)
 
@@ -119,6 +167,7 @@ def inject_branding():
             'accent_color': db.get_setting('accent_color', '#ffffff'),
             'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
             'visualizer_color': db.get_setting('visualizer_color', ''),
+            'tracking_code': db.get_setting('tracking_code', ''),
         }
     }
 
@@ -376,6 +425,15 @@ def get_audio(song_id):
 def vote(song_id):
     try:
         """Submit a vote for a song."""
+        # Rate limiting (admin bypass)
+        if not session.get('admin'):
+            client_ip = request.headers.get('CF-Connecting-IP') or request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or request.remote_addr
+            allowed, retry_after = vote_limiter.check(client_ip)
+            if not allowed:
+                response = jsonify({'error': 'Too many votes. Please slow down.', 'retry_after': retry_after})
+                response.headers['Retry-After'] = str(retry_after)
+                return response, 429
+        
         song = db.get_song_by_id(song_id)
         if not song:
             return jsonify({'error': 'Song not found'}), 404

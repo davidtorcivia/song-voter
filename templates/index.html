@@ -28,6 +28,7 @@
     <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
 
     <link rel="stylesheet" href="/static/style.css">
+    {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
 </head>
 
 <body style="--accent-color: {{ branding.accent_color or '#ffffff' }}">
