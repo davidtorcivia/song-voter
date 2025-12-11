@@ -270,15 +270,16 @@ class SongVoter {
             return;
         }
 
+        // Show cast button immediately (SDK will be loaded when needed)
+        this.castBtn.style.display = 'inline-flex';
+
         // Load Cast SDK dynamically
         this.loadCastSDK().then(() => {
             this.initCastContext();
         }).catch(err => {
             console.log('Cast SDK load failed, falling back to Remote Playback:', err);
             // Fallback to Remote Playback API
-            if ('remote' in this.audio) {
-                this.castBtn.style.display = 'inline-flex';
-            }
+            this.useFallbackCast = true;
         });
     }
 
@@ -322,9 +323,6 @@ class SongVoter {
             autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
-        // Show cast button
-        this.castBtn.style.display = 'inline-flex';
-
         // Listen for session state changes
         castContext.addEventListener(
             cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
@@ -333,6 +331,7 @@ class SongVoter {
 
         // Store reference
         this.castContext = castContext;
+        this.castReady = true;
     }
 
     onCastSessionStateChanged(event) {
@@ -385,8 +384,8 @@ class SongVoter {
 
         this.castSession.loadMedia(request).then(() => {
             console.log('Media loaded to cast device');
-            // Sync volume
-            this.setCastVolume();
+            // Sync volume after media loads
+            setTimeout(() => this.setCastVolume(), 500);
         }).catch(err => {
             console.log('Cast media load error:', err);
         });
@@ -395,31 +394,40 @@ class SongVoter {
     setCastVolume() {
         if (!this.castSession) return;
 
-        const volume = this.gainNode
-            ? this.gainNode.gain.value
-            : (this.volumeSlider ? this.volumeSlider.value / 100 : 1);
+        // Get volume from slider (0-100 range, convert to 0-1)
+        const volume = this.volumeSlider ? this.volumeSlider.value / 100 : 1;
 
-        this.castSession.setVolume(volume).catch(err => {
+        try {
+            this.castSession.setVolume(volume);
+            console.log('Cast volume set to:', volume);
+        } catch (err) {
             console.log('Cast volume error:', err);
-        });
+        }
     }
 
     promptCast() {
-        // Use Cast SDK if available
-        if (this.castContext) {
-            this.castContext.requestSession().catch(err => {
-                if (err.code !== 'cancel') {
-                    console.log('Cast session error:', err);
-                }
-            });
+        // If SDK not ready yet, try Remote Playback API
+        if (!this.castReady || this.useFallbackCast) {
+            if ('remote' in this.audio) {
+                this.audio.remote.prompt().catch(err => {
+                    console.log('Cast prompt error:', err);
+                });
+            }
             return;
         }
 
-        // Fallback to Remote Playback API
-        if ('remote' in this.audio) {
-            this.audio.remote.prompt().catch(err => {
-                console.log('Cast prompt error:', err);
-            });
+        // Use Cast SDK
+        if (this.castContext) {
+            // requestSession must be called synchronously from user gesture
+            try {
+                this.castContext.requestSession();
+            } catch (err) {
+                console.log('Cast session error:', err);
+                // Fallback: try Remote Playback API
+                if ('remote' in this.audio) {
+                    this.audio.remote.prompt().catch(e => console.log('Fallback cast error:', e));
+                }
+            }
         }
     }
 

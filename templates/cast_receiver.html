@@ -86,7 +86,6 @@
             height: 100%;
             background: linear-gradient(90deg, #22c55e, #4ade80);
             width: 0%;
-            transition: width 0.5s linear;
             border-radius: 4px;
         }
 
@@ -124,6 +123,10 @@
 
         body.idle .idle-message {
             display: block;
+        }
+
+        body.idle .visualizer {
+            opacity: 0.3;
         }
     </style>
 </head>
@@ -165,11 +168,17 @@
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
 
-        // Visualizer state
-        let audioContext = null;
-        let analyser = null;
-        let dataArray = null;
+        // State
         let isPlaying = false;
+        let barHeights = [];
+        let targetHeights = [];
+        const barCount = 64;
+
+        // Initialize bar heights
+        for (let i = 0; i < barCount; i++) {
+            barHeights.push(5);
+            targetHeights.push(5);
+        }
 
         // Format time helper
         function formatTime(sec) {
@@ -190,7 +199,24 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Draw visualizer bars
+        // Simulated visualizer - generates random bar heights when playing
+        function updateTargetHeights() {
+            if (isPlaying) {
+                for (let i = 0; i < barCount; i++) {
+                    // Generate smooth random heights with some correlation between neighbors
+                    const base = 20 + Math.random() * 60;
+                    const wave = Math.sin(Date.now() / 500 + i * 0.2) * 15;
+                    targetHeights[i] = Math.max(5, base + wave);
+                }
+            } else {
+                // Idle state - small random heights
+                for (let i = 0; i < barCount; i++) {
+                    targetHeights[i] = 3 + Math.random() * 8;
+                }
+            }
+        }
+
+        // Draw visualizer bars with smooth animation
         function drawVisualizer() {
             requestAnimationFrame(drawVisualizer);
 
@@ -199,43 +225,36 @@
 
             ctx.clearRect(0, 0, width, height);
 
-            if (!analyser || !isPlaying) {
-                // Draw idle bars
-                const barCount = 48;
-                const barWidth = (width / barCount) * 0.8;
-                const gap = (width / barCount) * 0.2;
-
-                for (let i = 0; i < barCount; i++) {
-                    const barHeight = 3 + Math.random() * 5;
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                    ctx.fillRect(i * (barWidth + gap), height - barHeight, barWidth, barHeight);
-                }
-                return;
-            }
-
-            analyser.getByteFrequencyData(dataArray);
-
-            const barCount = 64;
-            const barWidth = (width / barCount) * 0.85;
-            const gap = (width / barCount) * 0.15;
-            const bufferLength = dataArray.length;
+            const barWidth = (width / barCount) * 0.8;
+            const gap = (width / barCount) * 0.2;
 
             for (let i = 0; i < barCount; i++) {
-                const idx = Math.floor(i * bufferLength / barCount);
-                const value = dataArray[idx] / 255;
-                const barHeight = value * height * 0.9;
+                // Smooth interpolation toward target
+                barHeights[i] += (targetHeights[i] - barHeights[i]) * 0.15;
+
+                const barHeight = barHeights[i];
                 const x = i * (barWidth + gap);
 
-                // Green VU meter gradient
-                const hue = 120 + (i / barCount) * 30 - 15;
-                const sat = 50 + value * 40;
-                const light = 35 + value * 40;
+                if (isPlaying) {
+                    // Green VU meter gradient when playing
+                    const hue = 120 + (i / barCount) * 30 - 15;
+                    const normalizedHeight = barHeight / 80;
+                    const sat = 50 + normalizedHeight * 40;
+                    const light = 35 + normalizedHeight * 40;
+                    ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.85)`;
+                } else {
+                    // Dim gray when idle
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                }
 
-                ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.85)`;
                 ctx.fillRect(x, height - barHeight, barWidth, barHeight);
             }
         }
 
+        // Update target heights periodically
+        setInterval(updateTargetHeights, 100);
+
+        // Start animation
         drawVisualizer();
 
         // Handle media load
@@ -265,39 +284,31 @@
             }
         );
 
-        // Update progress during playback
-        playerManager.addEventListener(
-            cast.framework.events.EventType.TIME_UPDATE,
-            (event) => {
+        // Update progress during playback - use interval for reliability
+        setInterval(() => {
+            try {
                 const currentTime = playerManager.getCurrentTimeSec();
                 const duration = playerManager.getDurationSec();
 
-                if (duration > 0) {
+                if (duration > 0 && !isNaN(currentTime)) {
                     const progress = (currentTime / duration) * 100;
                     progressFill.style.width = `${progress}%`;
                     currentTimeEl.textContent = formatTime(currentTime);
                     totalTimeEl.textContent = formatTime(duration);
                 }
+            } catch (e) {
+                // Player not ready
             }
-        );
+        }, 500);
 
-        // Handle play/pause for visualizer
+        // Handle play/pause state
         playerManager.addEventListener(
             cast.framework.events.EventType.PLAYER_STATE_CHANGED,
             (event) => {
                 const state = event.fieldValue;
-                isPlaying = (state === cast.framework.events.EventType.PLAYING);
-
-                // Try to set up audio analyser on first play
-                if (isPlaying && !audioContext) {
-                    try {
-                        // Note: Audio analysis on CAF receivers is limited
-                        // This is a placeholder for potential future enhancement
-                        console.log('Visualizer active');
-                    } catch (err) {
-                        console.log('Audio analyser setup failed:', err);
-                    }
-                }
+                // Check for PLAYING state
+                isPlaying = (state === 'PLAYING' || state === cast.framework.ui.State.PLAYING);
+                console.log('Player state:', state, 'isPlaying:', isPlaying);
             }
         );
 
