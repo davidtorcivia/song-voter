@@ -599,7 +599,6 @@ class SongVoter {
 
                 await this.loadBaseNames();
                 this.startBtn.disabled = false;
-                this.showFeedback(`Found ${this.songs.length} songs`);
             } else {
                 // No songs, trigger scan
                 await this.scanSongs();

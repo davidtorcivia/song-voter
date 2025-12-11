@@ -388,6 +388,15 @@
                     placeholder="<script src=&quot;...&quot;></script>">{{ settings.tracking_code or '' }}</textarea>
             </div>
 
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                <div class="setting-info">
+                    <span class="setting-label">Timezone</span>
+                    <span class="setting-desc">IANA format (e.g., America/New_York)</span>
+                </div>
+                <input type="text" id="timezone" class="setting-input" value="{{ settings.timezone or '' }}"
+                    style="width: 100%;" placeholder="Leave empty for server default">
+            </div>
+
             <div class="setting-row">
                 <div class="setting-info">
                     <span class="setting-label">Accent Color</span>
@@ -681,6 +690,7 @@
                 visualizer_mode: document.getElementById('visualizerMode').value,
                 visualizer_color: visualizerColorEnabled ? document.getElementById('visualizerColor').value : '',
                 tracking_code: document.getElementById('trackingCode').value,
+                timezone: document.getElementById('timezone').value,
             };
 
             try {

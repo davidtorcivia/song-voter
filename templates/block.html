@@ -48,6 +48,50 @@
                 </span>
             </div>
 
+            {% if block.expires_at %}
+            <!-- Expiration countdown -->
+            <div id="expirationNotice" style="text-align: center; margin-bottom: 24px;">
+                <span
+                    style="display: inline-block; padding: 6px 16px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 16px; font-size: 0.75rem; color: var(--success);">
+                    <span id="countdownText"></span>
+                </span>
+            </div>
+            <script>
+                (function () {
+                    const expiresAt = new Date('{{ block.expires_at }}');
+                    const countdownEl = document.getElementById('countdownText');
+                    const noticeEl = document.getElementById('expirationNotice');
+
+                    function updateCountdown() {
+                        const now = new Date();
+                        const diff = expiresAt - now;
+
+                        if (diff <= 0) {
+                            countdownEl.textContent = 'Voting has ended';
+                            return;
+                        }
+
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+                        let text = '';
+                        if (days > 0) {
+                            text = days + 'd ' + hours + 'h remaining';
+                        } else if (hours > 0) {
+                            text = hours + 'h ' + mins + 'm remaining';
+                        } else {
+                            text = mins + 'm remaining';
+                        }
+                        countdownEl.textContent = text;
+                    }
+
+                    updateCountdown();
+                    setInterval(updateCountdown, 60000); // Update every minute
+                })();
+            </script>
+            {% endif %}
+
             <!-- Instructions -->
             <div style="margin-bottom: 28px;">
                 <h3

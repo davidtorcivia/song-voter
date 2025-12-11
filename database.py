@@ -132,6 +132,9 @@ def init_db():
         
         # Homepage control
         'homepage_closed': 'false',  # When true, homepage shows only title/description
+        
+        # Timezone (IANA format, e.g. America/New_York)
+        'timezone': '',
     }
     for key, value in default_settings.items():
         cursor.execute(

@@ -672,7 +672,7 @@ def admin_update_settings():
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
         'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
         'accent_color', 'visualizer_mode', 'visualizer_color', 'homepage_closed',
-        'tracking_code'
+        'tracking_code', 'timezone'
     ]
     
     for key, value in data.items():

@@ -465,7 +465,7 @@
                             <span class="block-badge protected">Protected</span>
                             {% endif %}
                             {% if block.expires_at %}
-                            <span class="block-badge {% if block.expires_at < now %}expired{% endif %}">
+                            <span class="block-badge">
                                 Expires {{ block.expires_at[:16] if block.expires_at else '' }}
                             </span>
                             {% endif %}
