@@ -254,7 +254,7 @@ def vote_block(slug):
         flash('This vote block has no songs', 'error')
         return redirect(url_for('index'))
     
-    settings = db.get_settings()
+    settings = db.get_all_settings()
     return render_template('block.html', block=block, songs=songs, settings=settings)
 
 
