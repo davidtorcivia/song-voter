@@ -47,26 +47,35 @@
                 </span>
             </div>
 
-            <!-- Listen time notice -->
-            {% set effective_min_time = block.min_listen_time if block.min_listen_time is not none else
-            (settings.min_listen_time|int if settings.min_listen_time else 20) %}
-            {% if effective_min_time and effective_min_time > 0 %}
-            <div
-                style="text-align: center; margin-bottom: 20px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid var(--border);">
-                <span style="font-size: 0.8rem; color: var(--text-secondary);">
-                    Listen for at least <strong style="color: var(--accent-warm);">{{ effective_min_time }}
-                        seconds</strong> before voting
-                </span>
-            </div>
-            {% endif %}
-
             <!-- Instructions -->
             <div style="margin-bottom: 28px;">
                 <h3
                     style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">
                     How it works</h3>
 
+                {% set effective_min_time = block.min_listen_time if block.min_listen_time is not none else
+                (settings.min_listen_time|int if settings.min_listen_time else 20) %}
+
                 <div style="display: grid; gap: 16px; max-width: 380px; margin: 0 auto;">
+                    <!-- Listen instruction -->
+                    {% if effective_min_time and effective_min_time > 0 %}
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <div
+                            style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 50%; flex-shrink: 0;">
+                            <span style="color: var(--text-primary); font-size: 0.9rem;">♫</span>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
+                                Listen</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
+                                Listen for at least <strong style="color: var(--accent-warm);">{{ effective_min_time }}
+                                    seconds</strong> before voting
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Step 1 -->
                     <div style="display: flex; gap: 14px; align-items: flex-start;">
                         <div
