@@ -43,6 +43,24 @@
     padding: 0;
 }
 
+/* Prevent sticky focus on tap for all interactive elements */
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
 body {
     font-family: var(--font-mono);
     /* Static premium background - animated on desktop only for performance */
@@ -329,6 +347,16 @@ h1 {
         background: var(--bg-secondary);
         border-color: var(--border);
     }
+}
+
+/* Only show focus ring on keyboard navigation, not tap */
+.btn:focus {
+    outline: none;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .btn:active {
