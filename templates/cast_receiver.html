@@ -107,7 +107,7 @@
             left: 0;
             width: 100%;
             height: 120px;
-            opacity: 0.7;
+            opacity: 0.8;
         }
 
         /* Idle state */
@@ -170,15 +170,12 @@
 
         // State
         let isPlaying = false;
-        let barHeights = [];
-        let targetHeights = [];
-        const barCount = 64;
+        let waveformData = null;
+        let currentProgress = 0;
+        let duration = 0;
 
-        // Initialize bar heights
-        for (let i = 0; i < barCount; i++) {
-            barHeights.push(5);
-            targetHeights.push(5);
-        }
+        const barCount = 64;
+        let displayHeights = new Array(barCount).fill(5);
 
         // Format time helper
         function formatTime(sec) {
@@ -199,21 +196,33 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Simulated visualizer - generates random bar heights when playing
-        function updateTargetHeights() {
-            if (isPlaying) {
-                for (let i = 0; i < barCount; i++) {
-                    // Generate smooth random heights with some correlation between neighbors
-                    const base = 20 + Math.random() * 60;
-                    const wave = Math.sin(Date.now() / 500 + i * 0.2) * 15;
-                    targetHeights[i] = Math.max(5, base + wave);
-                }
-            } else {
-                // Idle state - small random heights
-                for (let i = 0; i < barCount; i++) {
-                    targetHeights[i] = 3 + Math.random() * 8;
-                }
+        // Get target heights from waveform data based on current position
+        function getWaveformHeights(progress) {
+            if (!waveformData || waveformData.length === 0) {
+                // Fallback to random when no waveform
+                return new Array(barCount).fill(0).map(() => isPlaying ? 20 + Math.random() * 50 : 5);
             }
+
+            const heights = [];
+            const waveLen = waveformData.length;
+
+            // Calculate the center position in the waveform
+            const centerIdx = Math.floor(progress * waveLen);
+
+            // Show a window of bars around current position
+            const windowSize = Math.floor(waveLen * 0.1); // 10% of track visible
+
+            for (let i = 0; i < barCount; i++) {
+                // Map bar position to waveform index
+                const offset = (i / barCount - 0.5) * windowSize;
+                const idx = Math.max(0, Math.min(waveLen - 1, Math.round(centerIdx + offset)));
+                const value = waveformData[idx] || 0;
+
+                // Scale to canvas height (waveform values are 0-1)
+                heights.push(value * 80 + 5);
+            }
+
+            return heights;
         }
 
         // Draw visualizer bars with smooth animation
@@ -228,20 +237,27 @@
             const barWidth = (width / barCount) * 0.8;
             const gap = (width / barCount) * 0.2;
 
+            // Get target heights based on waveform and progress
+            const targetHeights = getWaveformHeights(currentProgress);
+
             for (let i = 0; i < barCount; i++) {
                 // Smooth interpolation toward target
-                barHeights[i] += (targetHeights[i] - barHeights[i]) * 0.15;
+                displayHeights[i] += (targetHeights[i] - displayHeights[i]) * 0.2;
 
-                const barHeight = barHeights[i];
+                const barHeight = displayHeights[i];
                 const x = i * (barWidth + gap);
 
-                if (isPlaying) {
-                    // Green VU meter gradient when playing
+                // Determine if this bar is "played" (left of center)
+                const isPlayed = i < barCount / 2;
+
+                if (isPlaying || waveformData) {
+                    // Green VU meter gradient
                     const hue = 120 + (i / barCount) * 30 - 15;
-                    const normalizedHeight = barHeight / 80;
+                    const normalizedHeight = barHeight / 85;
                     const sat = 50 + normalizedHeight * 40;
-                    const light = 35 + normalizedHeight * 40;
-                    ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.85)`;
+                    const light = isPlayed ? (35 + normalizedHeight * 40) : (25 + normalizedHeight * 25);
+                    const alpha = isPlayed ? 0.9 : 0.5;
+                    ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
                 } else {
                     // Dim gray when idle
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
@@ -249,10 +265,18 @@
 
                 ctx.fillRect(x, height - barHeight, barWidth, barHeight);
             }
-        }
 
-        // Update target heights periodically
-        setInterval(updateTargetHeights, 100);
+            // Draw playhead line at center
+            if (isPlaying && waveformData) {
+                const centerX = width / 2;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(centerX, 0);
+                ctx.lineTo(centerX, height);
+                ctx.stroke();
+            }
+        }
 
         // Start animation
         drawVisualizer();
@@ -280,33 +304,48 @@
                     }
                 }
 
+                // Load waveform data if provided
+                if (media.customData && media.customData.waveformUrl) {
+                    fetch(media.customData.waveformUrl)
+                        .then(res => res.json())
+                        .then(data => {
+                            waveformData = data;
+                            console.log('Waveform loaded:', data.length, 'points');
+                        })
+                        .catch(err => {
+                            console.log('Waveform load error:', err);
+                            waveformData = null;
+                        });
+                } else {
+                    waveformData = null;
+                }
+
                 return request;
             }
         );
 
-        // Update progress during playback - use interval for reliability
+        // Update progress during playback
         setInterval(() => {
             try {
                 const currentTime = playerManager.getCurrentTimeSec();
-                const duration = playerManager.getDurationSec();
+                duration = playerManager.getDurationSec();
 
                 if (duration > 0 && !isNaN(currentTime)) {
-                    const progress = (currentTime / duration) * 100;
-                    progressFill.style.width = `${progress}%`;
+                    currentProgress = currentTime / duration;
+                    progressFill.style.width = `${currentProgress * 100}%`;
                     currentTimeEl.textContent = formatTime(currentTime);
                     totalTimeEl.textContent = formatTime(duration);
                 }
             } catch (e) {
                 // Player not ready
             }
-        }, 500);
+        }, 100); // Faster updates for smoother visualizer
 
         // Handle play/pause state
         playerManager.addEventListener(
             cast.framework.events.EventType.PLAYER_STATE_CHANGED,
             (event) => {
                 const state = event.fieldValue;
-                // Check for PLAYING state
                 isPlaying = (state === 'PLAYING' || state === cast.framework.ui.State.PLAYING);
                 console.log('Player state:', state, 'isPlaying:', isPlaying);
             }
@@ -317,7 +356,9 @@
             cast.framework.events.EventType.MEDIA_FINISHED,
             () => {
                 isPlaying = false;
+                currentProgress = 0;
                 progressFill.style.width = '0%';
+                waveformData = null;
             }
         );
 

@@ -378,6 +378,11 @@ class SongVoter {
             mediaInfo.metadata.images = [new chrome.cast.Image(ogImageUrl)];
         }
 
+        // Add waveform URL for visualizer on receiver
+        mediaInfo.customData = {
+            waveformUrl: window.location.origin + `/api/songs/${this.currentSong.id}/waveform`
+        };
+
         const request = new chrome.cast.media.LoadRequest(mediaInfo);
         request.currentTime = this.audio.currentTime;
         request.autoplay = this.isPlaying;
