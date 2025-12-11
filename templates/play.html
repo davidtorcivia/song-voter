@@ -221,6 +221,13 @@
                 // Cache accent color
                 this.accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#a78bfa';
 
+                // Restore saved volume preference
+                const savedVolume = localStorage.getItem('song_voter_volume');
+                if (savedVolume !== null && this.volumeSlider) {
+                    this.volumeSlider.value = savedVolume / 100;
+                    this.audio.volume = savedVolume / 100;
+                }
+
                 this.init(songId);
             }
 
@@ -254,6 +261,8 @@
                     } else {
                         this.audio.volume = volume;
                     }
+                    // Persist volume preference
+                    localStorage.setItem('song_voter_volume', Math.round(volume * 100));
                 });
 
 

@@ -113,6 +113,13 @@ class SongVoter {
 
         // Draft votes (auto-save to localStorage)
         this.draftKey = 'song_voter_draft';
+
+        // Restore saved volume preference
+        const savedVolume = localStorage.getItem('song_voter_volume');
+        if (savedVolume !== null && this.volumeSlider) {
+            this.volumeSlider.value = savedVolume;
+            this.audio.volume = savedVolume / 100;
+        }
     }
 
     initEventListeners() {
@@ -888,6 +895,8 @@ class SongVoter {
         } else {
             this.audio.volume = volume;
         }
+        // Persist volume preference
+        localStorage.setItem('song_voter_volume', this.volumeSlider.value);
     }
 
     updateProgress() {
