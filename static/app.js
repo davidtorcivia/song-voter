@@ -270,8 +270,8 @@ class SongVoter {
             return;
         }
 
-        // Show cast button immediately (SDK will be loaded when needed)
-        this.castBtn.style.display = 'inline-flex';
+        // Hide button until SDK is ready (prevents clicks before devices available)
+        this.castBtn.style.display = 'none';
 
         // Load Cast SDK dynamically
         this.loadCastSDK().then(() => {
@@ -280,6 +280,7 @@ class SongVoter {
             console.log('Cast SDK load failed, falling back to Remote Playback:', err);
             // Fallback to Remote Playback API
             this.useFallbackCast = true;
+            this.castBtn.style.display = 'inline-flex';
         });
     }
 
@@ -323,6 +324,18 @@ class SongVoter {
             autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
         });
 
+        // Listen for cast state changes (device availability)
+        castContext.addEventListener(
+            cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+            (event) => {
+                console.log('Cast state:', event.castState);
+                // Show button when cast devices are available or connected
+                if (event.castState !== cast.framework.CastState.NO_DEVICES_AVAILABLE) {
+                    this.castBtn.style.display = 'inline-flex';
+                }
+            }
+        );
+
         // Listen for session state changes
         castContext.addEventListener(
             cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
@@ -332,6 +345,13 @@ class SongVoter {
         // Store reference
         this.castContext = castContext;
         this.castReady = true;
+
+        // Check initial state - may already have devices
+        const initialState = castContext.getCastState();
+        console.log('Initial cast state:', initialState);
+        if (initialState !== cast.framework.CastState.NO_DEVICES_AVAILABLE) {
+            this.castBtn.style.display = 'inline-flex';
+        }
     }
 
     onCastSessionStateChanged(event) {
