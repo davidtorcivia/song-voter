@@ -236,7 +236,10 @@
                     .catch(() => this.waveData = null);
 
                 // Event listeners
-                this.playBtn.addEventListener('click', () => this.togglePlay());
+                this.playBtn.addEventListener('click', () => {
+                    this.togglePlay();
+                    this.playBtn.blur(); // Remove focus highlight on mobile
+                });
 
                 if (this.waveformCanvas) {
                     this.waveformCanvas.addEventListener('click', (e) => this.seekFromEvent(e));
@@ -332,14 +335,10 @@
             initCasting() {
                 if (!this.castBtn) return;
 
-                // Check if Remote Playback API is available
+                // Show cast button immediately if Remote Playback API exists
+                // User wants to initiate cast before playback
                 if ('remote' in this.audio) {
-                    this.audio.remote.watchAvailability((available) => {
-                        this.castBtn.style.display = available ? 'flex' : 'none';
-                    }).catch(() => {
-                        // Fallback: always show cast button
-                        this.castBtn.style.display = 'flex';
-                    });
+                    this.castBtn.style.display = 'flex';
                 } else {
                     this.castBtn.style.display = 'none';
                 }
