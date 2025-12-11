@@ -7,6 +7,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 DATABASE_PATH = os.environ.get('DATABASE_PATH', 'data/song_voter.db')
 
 
+def _generate_song_slug():
+    """Generate a unique URL-safe slug for a song (8 chars)."""
+    import secrets
+    return secrets.token_urlsafe(6)[:8]  # 8 char URL-safe slug
+
+
 def get_db():
     """Get database connection."""
     os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
@@ -159,6 +165,19 @@ def init_db():
         cursor.execute("ALTER TABLE vote_blocks ADD COLUMN min_listen_time INTEGER")
         print("Migration: Added min_listen_time column to vote_blocks table")
     
+    # Migration: Add slug column to songs table
+    cursor.execute("PRAGMA table_info(songs)")
+    song_columns = [col[1] for col in cursor.fetchall()]
+    if 'slug' not in song_columns:
+        cursor.execute("ALTER TABLE songs ADD COLUMN slug TEXT")
+        print("Migration: Added slug column to songs table")
+        # Generate slugs for existing songs
+        cursor.execute("SELECT id FROM songs WHERE slug IS NULL")
+        for row in cursor.fetchall():
+            slug = _generate_song_slug()
+            cursor.execute("UPDATE songs SET slug = ? WHERE id = ?", (slug, row['id']))
+        print("Migration: Generated slugs for existing songs")
+    
     # Create initial admin from environment if specified
     admin_user = os.environ.get('ADMIN_USER')
     admin_pass = os.environ.get('ADMIN_PASS')
@@ -304,11 +323,12 @@ def add_song(filename, full_path):
     cursor = conn.cursor()
     
     base_name = parse_base_name(filename)
+    slug = _generate_song_slug()
     
     try:
         cursor.execute(
-            'INSERT INTO songs (filename, base_name, full_path) VALUES (?, ?, ?)',
-            (filename, base_name, full_path)
+            'INSERT INTO songs (filename, base_name, full_path, slug) VALUES (?, ?, ?, ?)',
+            (filename, base_name, full_path, slug)
         )
         conn.commit()
         song_id = cursor.lastrowid
@@ -348,7 +368,7 @@ def get_all_songs():
     """Get all songs from the database."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, filename, base_name, full_path FROM songs ORDER BY base_name, filename')
+    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs ORDER BY base_name, filename')
     songs = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return songs
@@ -381,7 +401,18 @@ def get_song_by_id(song_id):
     """Get a song by its ID."""
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, filename, base_name, full_path FROM songs WHERE id = ?', (song_id,))
+    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs WHERE id = ?', (song_id,))
+    row = cursor.fetchone()
+    song = dict(row) if row else None
+    conn.close()
+    return song
+
+
+def get_song_by_slug(slug):
+    """Get a song by its slug."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, filename, base_name, full_path, slug FROM songs WHERE slug = ?', (slug,))
     row = cursor.fetchone()
     song = dict(row) if row else None
     conn.close()
@@ -483,6 +514,7 @@ def get_all_results():
             s.id,
             s.filename,
             s.base_name,
+            s.slug,
             COUNT(v.id) as vote_count,
             AVG(v.rating) as avg_rating,
             SUM(CASE WHEN v.thumbs_up = 1 THEN 1 ELSE 0 END) as thumbs_up_count,
@@ -525,6 +557,7 @@ def get_all_results():
         
         results.append({
             'id': row['id'],
+            'slug': row['slug'],
             'filename': row['filename'],
             'base_name': row['base_name'],
             'vote_count': row['vote_count'],
@@ -791,6 +824,7 @@ def get_block_results(block_id):
             s.id,
             s.filename,
             s.base_name,
+            s.slug,
             COUNT(v.id) as vote_count,
             AVG(v.rating) as avg_rating,
             SUM(CASE WHEN v.thumbs_up = 1 THEN 1 ELSE 0 END) as thumbs_up_count,
@@ -835,6 +869,7 @@ def get_block_results(block_id):
         
         results.append({
             'id': row['id'],
+            'slug': row['slug'],
             'filename': row['filename'],
             'base_name': row['base_name'],
             'vote_count': row['vote_count'],

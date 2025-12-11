@@ -259,13 +259,12 @@ def help_page():
     return render_template('help.html')
 
 
-@app.route('/play/<int:song_id>')
-def play_song(song_id):
+@app.route('/play/<slug>')
+def play_song(slug):
     """Single song player (no voting)."""
-    song = db.get_song_by_id(song_id)
+    song = db.get_song_by_slug(slug)
     if not song:
-        flash('Song not found', 'error')
-        return redirect(url_for('index'))
+        return render_template('not_found.html', message='Song not found'), 404
     return render_template('play.html', song=song)
 
 
@@ -672,7 +671,8 @@ def admin_update_settings():
         'site_password', 'voting_restriction', 'results_visibility',
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
         'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
-        'accent_color', 'visualizer_mode', 'visualizer_color', 'homepage_closed'
+        'accent_color', 'visualizer_mode', 'visualizer_color', 'homepage_closed',
+        'tracking_code'
     ]
     
     for key, value in data.items():

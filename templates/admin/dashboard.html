@@ -477,7 +477,7 @@
                     <input type="checkbox" class="song-checkbox" data-id="{{ song.id }}">
                     <span class="song-name">{{ song.filename }}</span>
                     <div class="song-actions">
-                        <a href="/play/{{ song.id }}" class="btn-icon" title="Play">&#9654;</a>
+                        <a href="/play/{{ song.slug }}" class="btn-icon" title="Play">&#9654;</a>
                         <button class="btn-icon btn-danger delete-song" data-id="{{ song.id }}"
                             title="Delete">&#10005;</button>
                     </div>
