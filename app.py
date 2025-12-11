@@ -302,6 +302,12 @@ def play_song(slug):
     return render_template('play.html', song=song)
 
 
+@app.route('/cast-receiver')
+def cast_receiver():
+    """Serve the Custom Cast Receiver."""
+    return render_template('cast_receiver.html')
+
+
 @app.route('/vote/<base_name>')
 def vote_track(base_name):
     """Direct link to vote on a specific track (all versions)."""
