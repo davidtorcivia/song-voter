@@ -196,6 +196,9 @@ def inject_branding():
             'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
             'visualizer_color': db.get_setting('visualizer_color', ''),
             'tracking_code': db.get_setting('tracking_code', ''),
+            'cast_enabled': db.get_setting('cast_enabled', 'false'),
+            'cast_app_id': db.get_setting('cast_app_id', ''),
+            'cast_receiver_type': db.get_setting('cast_receiver_type', 'default'),
         }
     }
 
@@ -238,6 +241,9 @@ def index():
         'accent_color': db.get_setting('accent_color', '#ffffff'),
         'visualizer_mode': db.get_setting('visualizer_mode', 'bars'),
         'visualizer_color': db.get_setting('visualizer_color', ''),
+        'cast_enabled': db.get_setting('cast_enabled', 'false'),
+        'cast_app_id': db.get_setting('cast_app_id', ''),
+        'cast_receiver_type': db.get_setting('cast_receiver_type', 'default'),
     }
     
     # Server-side caching: Get songs from DB

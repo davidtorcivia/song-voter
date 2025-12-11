@@ -270,8 +270,14 @@ class SongVoter {
             return;
         }
 
-        // Hide button until SDK is ready (prevents clicks before devices available)
-        this.castBtn.style.display = 'none';
+        // Show cast button immediately if enabled (SDK manages state later)
+        this.castBtn.style.display = 'inline-flex';
+
+        console.log('Initializing Cast with:', {
+            enabled: window.CAST_ENABLED,
+            appId: window.CAST_APP_ID,
+            type: window.CAST_RECEIVER_TYPE
+        });
 
         // Load Cast SDK dynamically
         this.loadCastSDK().then(() => {

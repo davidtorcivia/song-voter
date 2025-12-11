@@ -768,8 +768,14 @@
                     return;
                 }
 
-                // Hide button until SDK is ready
-                this.castBtn.style.display = 'none';
+                // Show button immediately
+                this.castBtn.style.display = 'inline-flex';
+
+                console.log('Play Page: Initializing Cast with:', {
+                    enabled: window.CAST_ENABLED,
+                    appId: window.CAST_APP_ID,
+                    type: window.CAST_RECEIVER_TYPE
+                });
 
                 // Load Cast SDK dynamically
                 this.loadCastSDK().then(() => {
