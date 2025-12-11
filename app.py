@@ -681,10 +681,12 @@ def admin_logout():
 def admin_dashboard():
     """Admin dashboard (with role-based visibility)."""
     admin = session.get('admin', {})
+    admin_id = admin.get('id')
     role = admin.get('role', 'editor')
     
     settings = db.get_all_settings()
-    songs = db.get_all_songs()
+    # Editors only see their own songs count
+    songs = db.get_songs_for_user(admin_id, role)
     admins = db.get_all_admins()
     
     return render_template('admin/dashboard.html', 
@@ -692,7 +694,7 @@ def admin_dashboard():
                          songs=songs, 
                          admins=admins,
                          role=role,
-                         current_admin_id=admin.get('id'))
+                         current_admin_id=admin_id)
 
 
 @app.route('/admin/settings', methods=['POST'])
