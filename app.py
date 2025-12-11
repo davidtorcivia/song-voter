@@ -254,7 +254,8 @@ def vote_block(slug):
         flash('This vote block has no songs', 'error')
         return redirect(url_for('index'))
     
-    return render_template('block.html', block=block, songs=songs)
+    settings = db.get_settings()
+    return render_template('block.html', block=block, songs=songs, settings=settings)
 
 
 @app.route('/vote/block/<slug>/auth', methods=['GET', 'POST'])

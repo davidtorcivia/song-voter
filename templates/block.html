@@ -14,8 +14,13 @@
     {% if branding.url %}
     <meta property="og:url" content="{{ branding.url }}/vote/block/{{ block.slug }}">{% endif %}
     {% if branding.og_image %}
-    <meta property="og:image"
-        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% else %}{{ request.host_url.rstrip('/') }}{{ branding.og_image }}{% endif %}">
+    {% set og_img_url = (branding.og_image if branding.og_image.startswith('http') else request.host_url.rstrip('/') ~
+    branding.og_image) | replace('http://', 'https://') %}
+    <meta property="og:image" content="{{ og_img_url }}">
+    <meta property="og:image:secure_url" content="{{ og_img_url }}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     {% endif %}
 
     <meta name="twitter:card" content="summary_large_image">
@@ -42,6 +47,19 @@
                 </span>
             </div>
 
+            <!-- Listen time notice -->
+            {% set effective_min_time = block.min_listen_time if block.min_listen_time is not none else
+            (settings.min_listen_time|int if settings.min_listen_time else 20) %}
+            {% if effective_min_time and effective_min_time > 0 %}
+            <div
+                style="text-align: center; margin-bottom: 20px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid var(--border);">
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">
+                    Listen for at least <strong style="color: var(--accent-warm);">{{ effective_min_time }}
+                        seconds</strong> before voting
+                </span>
+            </div>
+            {% endif %}
+
             <!-- Instructions -->
             <div style="margin-bottom: 28px;">
                 <h3
@@ -60,8 +78,8 @@
                                 style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); margin-bottom: 2px;">
                                 Keep or Pass</div>
                             <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
-                                Tap <strong style="color: var(--positive);">Keep</strong> if you'd like to hear this
-                                version again, <strong style="color: var(--danger);">Pass</strong> if not
+                                Tap <strong style="color: var(--positive);">Keep</strong> if you like this
+                                version, <strong style="color: var(--danger);">Pass</strong> if not
                             </div>
 
                         </div>

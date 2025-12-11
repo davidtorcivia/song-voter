@@ -14,8 +14,13 @@
     {% if branding.url %}
     <meta property="og:url" content="{{ branding.url }}">{% endif %}
     {% if branding.og_image %}
-    <meta property="og:image"
-        content="{% if branding.og_image.startswith('http') %}{{ branding.og_image }}{% else %}{{ request.host_url.rstrip('/') }}{{ branding.og_image }}{% endif %}">
+    {% set og_img_url = (branding.og_image if branding.og_image.startswith('http') else request.host_url.rstrip('/') ~
+    branding.og_image) | replace('http://', 'https://') %}
+    <meta property="og:image" content="{{ og_img_url }}">
+    <meta property="og:image:secure_url" content="{{ og_img_url }}">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     {% endif %}
     <meta name="twitter:card" content="summary_large_image">
 
