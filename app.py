@@ -676,6 +676,12 @@ def admin_logout():
     return redirect(url_for('index'))
 
 
+@app.route('/cast-receiver')
+def cast_receiver():
+    """Serve custom Cast receiver for Chromecast/Shield."""
+    return render_template('cast_receiver.html')
+
+
 @app.route('/admin/')
 @admin_required
 def admin_dashboard():
@@ -708,7 +714,8 @@ def admin_update_settings():
         'voting_start', 'voting_end', 'min_listen_time', 'disable_skip',
         'site_title', 'site_description', 'site_url', 'og_image', 'favicon',
         'accent_color', 'visualizer_mode', 'visualizer_color', 'homepage_closed',
-        'tracking_code', 'timezone'
+        'tracking_code', 'timezone',
+        'cast_enabled', 'cast_app_id', 'cast_receiver_type'
     ]
     
     for key, value in data.items():

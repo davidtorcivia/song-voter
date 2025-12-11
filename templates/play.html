@@ -197,6 +197,11 @@
     <script>
         window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
         window.VISUALIZER_COLOR = '{{ branding.visualizer_color or "" }}';
+        window.CAST_ENABLED = {{ 'true' if branding.cast_enabled == 'true' else 'false' }};
+        window.CAST_APP_ID = '{{ branding.cast_app_id or "" }}';
+        window.CAST_RECEIVER_TYPE = '{{ branding.cast_receiver_type or "default" }}';
+        window.OG_IMAGE = '{{ branding.og_image or "" }}';
+        window.SITE_TITLE = '{{ branding.title or "Song Voter" }}';
     </script>
     <script>
         class SimplePlayer {

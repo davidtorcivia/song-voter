@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Voter Cast Receiver</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            position: relative;
+        }
+
+        /* Album art / OG image */
+        .artwork {
+            width: 300px;
+            height: 300px;
+            border-radius: 12px;
+            object-fit: cover;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .artwork.loaded {
+            opacity: 1;
+        }
+
+        /* Song title */
+        .title {
+            font-size: 48px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 12px;
+            max-width: 80%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Artist / site name */
+        .artist {
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 60px;
+        }
+
+        /* Progress bar */
+        .progress-container {
+            width: 60%;
+            max-width: 800px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+            width: 0%;
+            transition: width 0.5s linear;
+            border-radius: 4px;
+        }
+
+        /* Time display */
+        .time-display {
+            width: 60%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.5);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Visualizer canvas */
+        .visualizer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            opacity: 0.7;
+        }
+
+        /* Idle state */
+        .idle-message {
+            font-size: 32px;
+            color: rgba(255, 255, 255, 0.3);
+            display: none;
+        }
+
+        body.idle .container>*:not(.idle-message) {
+            display: none;
+        }
+
+        body.idle .idle-message {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="idle">
+    <div class="container">
+        <img class="artwork" id="artwork" src="" alt="">
+        <div class="title" id="title">-</div>
+        <div class="artist" id="artist">Song Voter</div>
+
+        <div class="progress-container">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="time-display">
+            <span id="currentTime">0:00</span>
+            <span id="totalTime">0:00</span>
+        </div>
+
+        <div class="idle-message">Waiting for media...</div>
+    </div>
+
+    <canvas class="visualizer" id="visualizer"></canvas>
+
+    <!-- Cast Receiver SDK -->
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+    <script>
+        // Initialize Cast Receiver
+        const context = cast.framework.CastReceiverContext.getInstance();
+        const playerManager = context.getPlayerManager();
+
+        // DOM Elements
+        const artwork = document.getElementById('artwork');
+        const titleEl = document.getElementById('title');
+        const artistEl = document.getElementById('artist');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Visualizer state
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let isPlaying = false;
+
+        // Format time helper
+        function formatTime(sec) {
+            if (isNaN(sec)) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // Resize canvas for retina
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Draw visualizer bars
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (!analyser || !isPlaying) {
+                // Draw idle bars
+                const barCount = 48;
+                const barWidth = (width / barCount) * 0.8;
+                const gap = (width / barCount) * 0.2;
+
+                for (let i = 0; i < barCount; i++) {
+                    const barHeight = 3 + Math.random() * 5;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.fillRect(i * (barWidth + gap), height - barHeight, barWidth, barHeight);
+                }
+                return;
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+
+            const barCount = 64;
+            const barWidth = (width / barCount) * 0.85;
+            const gap = (width / barCount) * 0.15;
+            const bufferLength = dataArray.length;
+
+            for (let i = 0; i < barCount; i++) {
+                const idx = Math.floor(i * bufferLength / barCount);
+                const value = dataArray[idx] / 255;
+                const barHeight = value * height * 0.9;
+                const x = i * (barWidth + gap);
+
+                // Green VU meter gradient
+                const hue = 120 + (i / barCount) * 30 - 15;
+                const sat = 50 + value * 40;
+                const light = 35 + value * 40;
+
+                ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.85)`;
+                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+            }
+        }
+
+        drawVisualizer();
+
+        // Handle media load
+        playerManager.setMessageInterceptor(
+            cast.framework.messages.MessageType.LOAD,
+            (request) => {
+                document.body.classList.remove('idle');
+
+                const media = request.media;
+
+                // Update title
+                if (media.metadata) {
+                    titleEl.textContent = media.metadata.title || 'Unknown';
+                    artistEl.textContent = media.metadata.artist || 'Song Voter';
+
+                    // Load artwork
+                    if (media.metadata.images && media.metadata.images.length > 0) {
+                        const imgUrl = media.metadata.images[0].url;
+                        artwork.src = imgUrl;
+                        artwork.classList.add('loaded');
+                    } else {
+                        artwork.classList.remove('loaded');
+                    }
+                }
+
+                return request;
+            }
+        );
+
+        // Update progress during playback
+        playerManager.addEventListener(
+            cast.framework.events.EventType.TIME_UPDATE,
+            (event) => {
+                const currentTime = playerManager.getCurrentTimeSec();
+                const duration = playerManager.getDurationSec();
+
+                if (duration > 0) {
+                    const progress = (currentTime / duration) * 100;
+                    progressFill.style.width = `${progress}%`;
+                    currentTimeEl.textContent = formatTime(currentTime);
+                    totalTimeEl.textContent = formatTime(duration);
+                }
+            }
+        );
+
+        // Handle play/pause for visualizer
+        playerManager.addEventListener(
+            cast.framework.events.EventType.PLAYER_STATE_CHANGED,
+            (event) => {
+                const state = event.fieldValue;
+                isPlaying = (state === cast.framework.events.EventType.PLAYING);
+
+                // Try to set up audio analyser on first play
+                if (isPlaying && !audioContext) {
+                    try {
+                        // Note: Audio analysis on CAF receivers is limited
+                        // This is a placeholder for potential future enhancement
+                        console.log('Visualizer active');
+                    } catch (err) {
+                        console.log('Audio analyser setup failed:', err);
+                    }
+                }
+            }
+        );
+
+        // Handle media ended
+        playerManager.addEventListener(
+            cast.framework.events.EventType.MEDIA_FINISHED,
+            () => {
+                isPlaying = false;
+                progressFill.style.width = '0%';
+            }
+        );
+
+        // Start receiver
+        context.start();
+    </script>
+</body>
+
+</html>

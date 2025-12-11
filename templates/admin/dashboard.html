@@ -474,6 +474,47 @@
             </div>
         </div>
 
+        <!-- Cast Settings -->
+        <div class="card admin-section">
+            <h2>Chromecast</h2>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Enable Cast SDK</span>
+                    <span class="setting-desc">Allows casting to Chromecast, Shield, etc.</span>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="castEnabled" {% if settings.cast_enabled=='true' %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                <div class="setting-info">
+                    <span class="setting-label">Cast App ID</span>
+                    <span class="setting-desc">From <a href="https://cast.google.com/publish" target="_blank"
+                            style="color: var(--accent);">cast.google.com/publish</a> ($5 one-time)</span>
+                </div>
+                <input type="text" id="castAppId" class="setting-input" value="{{ settings.cast_app_id or '' }}"
+                    style="width: 100%; font-family: monospace;" placeholder="XXXXXXXX">
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-info">
+                    <span class="setting-label">Receiver Type</span>
+                    <span class="setting-desc">Custom includes visualizer on TV</span>
+                </div>
+                <select id="castReceiverType" class="setting-select">
+                    <option value="default" {% if settings.cast_receiver_type=='default' or not
+                        settings.cast_receiver_type %}selected{% endif %}>Default</option>
+                    <option value="styled" {% if settings.cast_receiver_type=='styled' %}selected{% endif %}>Styled
+                    </option>
+                    <option value="custom" {% if settings.cast_receiver_type=='custom' %}selected{% endif %}>Custom
+                        (Visualizer)</option>
+                </select>
+            </div>
+        </div>
+
         <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
             Settings</button>
         {% endif %}
@@ -686,6 +727,9 @@
                 visualizer_color: visualizerColorEnabled ? document.getElementById('visualizerColor').value : '',
                 tracking_code: document.getElementById('trackingCode').value,
                 timezone: document.getElementById('timezone').value,
+                cast_enabled: document.getElementById('castEnabled').checked ? 'true' : 'false',
+                cast_app_id: document.getElementById('castAppId').value,
+                cast_receiver_type: document.getElementById('castReceiverType').value,
             };
 
             try {

@@ -255,20 +255,167 @@ class SongVoter {
     initCasting() {
         if (!this.castBtn) return;
 
-        // Check if Remote Playback API is available
-        if ('remote' in this.audio) {
-            this.audio.remote.watchAvailability((available) => {
-                this.castBtn.style.display = available ? 'inline-flex' : 'none';
-            }).catch(() => {
-                // Fallback: always show cast button
+        // Check if Cast is enabled via admin settings
+        if (!window.CAST_ENABLED || !window.CAST_APP_ID) {
+            // Fall back to Remote Playback API if Cast SDK not configured
+            if ('remote' in this.audio) {
+                this.audio.remote.watchAvailability((available) => {
+                    this.castBtn.style.display = available ? 'inline-flex' : 'none';
+                }).catch(() => {
+                    this.castBtn.style.display = 'inline-flex';
+                });
+            } else {
+                this.castBtn.style.display = 'none';
+            }
+            return;
+        }
+
+        // Load Cast SDK dynamically
+        this.loadCastSDK().then(() => {
+            this.initCastContext();
+        }).catch(err => {
+            console.log('Cast SDK load failed, falling back to Remote Playback:', err);
+            // Fallback to Remote Playback API
+            if ('remote' in this.audio) {
                 this.castBtn.style.display = 'inline-flex';
-            });
-        } else {
-            this.castBtn.style.display = 'none';
+            }
+        });
+    }
+
+    loadCastSDK() {
+        return new Promise((resolve, reject) => {
+            // Check if already loaded
+            if (window.cast && window.cast.framework) {
+                resolve();
+                return;
+            }
+
+            // Load the Cast SDK
+            const script = document.createElement('script');
+            script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+            script.async = true;
+
+            window['__onGCastApiAvailable'] = (isAvailable) => {
+                if (isAvailable) {
+                    resolve();
+                } else {
+                    reject(new Error('Cast API not available'));
+                }
+            };
+
+            script.onerror = () => reject(new Error('Failed to load Cast SDK'));
+            document.head.appendChild(script);
+        });
+    }
+
+    initCastContext() {
+        const castContext = cast.framework.CastContext.getInstance();
+
+        // Determine receiver application ID
+        let receiverAppId = window.CAST_APP_ID;
+        if (window.CAST_RECEIVER_TYPE === 'default') {
+            receiverAppId = chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID;
+        }
+
+        castContext.setOptions({
+            receiverApplicationId: receiverAppId,
+            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+        });
+
+        // Show cast button
+        this.castBtn.style.display = 'inline-flex';
+
+        // Listen for session state changes
+        castContext.addEventListener(
+            cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+            (event) => this.onCastSessionStateChanged(event)
+        );
+
+        // Store reference
+        this.castContext = castContext;
+    }
+
+    onCastSessionStateChanged(event) {
+        const session = cast.framework.CastContext.getInstance().getCurrentSession();
+
+        switch (event.sessionState) {
+            case cast.framework.SessionState.SESSION_STARTED:
+            case cast.framework.SessionState.SESSION_RESUMED:
+                this.castSession = session;
+                this.castBtn.classList.add('casting');
+                this.castBtn.title = 'Casting...';
+                // Load current media to cast device
+                if (this.currentSong) {
+                    this.loadMediaToCast();
+                }
+                break;
+
+            case cast.framework.SessionState.SESSION_ENDED:
+                this.castSession = null;
+                this.castBtn.classList.remove('casting');
+                this.castBtn.title = 'Cast';
+                break;
         }
     }
 
+    loadMediaToCast() {
+        if (!this.castSession || !this.currentSong) return;
+
+        const mediaInfo = new chrome.cast.media.MediaInfo(
+            window.location.origin + `/api/songs/${this.currentSong.id}/audio`,
+            'audio/mpeg'
+        );
+
+        // Add metadata for display on TV
+        mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+        mediaInfo.metadata.title = this.currentSong.base_name || this.currentSong.filename;
+        mediaInfo.metadata.artist = window.SITE_TITLE || 'Song Voter';
+
+        // Add OG image if available
+        if (window.OG_IMAGE) {
+            const ogImageUrl = window.OG_IMAGE.startsWith('http')
+                ? window.OG_IMAGE
+                : window.location.origin + window.OG_IMAGE;
+            mediaInfo.metadata.images = [new chrome.cast.Image(ogImageUrl)];
+        }
+
+        const request = new chrome.cast.media.LoadRequest(mediaInfo);
+        request.currentTime = this.audio.currentTime;
+        request.autoplay = this.isPlaying;
+
+        this.castSession.loadMedia(request).then(() => {
+            console.log('Media loaded to cast device');
+            // Sync volume
+            this.setCastVolume();
+        }).catch(err => {
+            console.log('Cast media load error:', err);
+        });
+    }
+
+    setCastVolume() {
+        if (!this.castSession) return;
+
+        const volume = this.gainNode
+            ? this.gainNode.gain.value
+            : (this.volumeSlider ? this.volumeSlider.value / 100 : 1);
+
+        this.castSession.setVolume(volume).catch(err => {
+            console.log('Cast volume error:', err);
+        });
+    }
+
     promptCast() {
+        // Use Cast SDK if available
+        if (this.castContext) {
+            this.castContext.requestSession().catch(err => {
+                if (err.code !== 'cancel') {
+                    console.log('Cast session error:', err);
+                }
+            });
+            return;
+        }
+
+        // Fallback to Remote Playback API
         if ('remote' in this.audio) {
             this.audio.remote.prompt().catch(err => {
                 console.log('Cast prompt error:', err);
@@ -850,6 +997,11 @@ class SongVoter {
 
         this.audio.play().catch(err => console.log('Autoplay blocked:', err));
 
+        // Update cast device with new song
+        if (this.castSession) {
+            this.loadMediaToCast();
+        }
+
         // Preload next song for instant transition
         this.preloadNextSong();
 
@@ -896,6 +1048,9 @@ class SongVoter {
         }
         // Persist volume preference
         localStorage.setItem('song_voter_volume', this.volumeSlider.value);
+
+        // Sync volume to cast device if active
+        this.setCastVolume();
     }
 
     updateProgress() {

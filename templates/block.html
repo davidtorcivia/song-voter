@@ -265,6 +265,13 @@
         // Block-specific settings (null = use global)
         window.BLOCK_DISABLE_SKIP = {% if block.disable_skip is not none %}{ { block.disable_skip } } {% else %} null{% endif %};
         window.BLOCK_MIN_LISTEN_TIME = {% if block.min_listen_time is not none %}{ { block.min_listen_time } } {% else %} null{% endif %};
+
+        // Cast config
+        window.CAST_ENABLED = {{ 'true' if branding.cast_enabled == 'true' else 'false' }};
+        window.CAST_APP_ID = '{{ branding.cast_app_id or "" }}';
+        window.CAST_RECEIVER_TYPE = '{{ branding.cast_receiver_type or "default" }}';
+        window.OG_IMAGE = '{{ branding.og_image or "" }}';
+        window.SITE_TITLE = '{{ branding.title or "Song Voter" }}';
     </script>
     <script src="/static/app.js"></script>
 </body>
