@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passage Sealed · {{ branding.title or 'Song Voter' }}</title>
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .error-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 48px 24px;
+            background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%);
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(15, 15, 15, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .error-code {
+            font-size: 6rem;
+            font-weight: 200;
+            letter-spacing: 0.5em;
+            color: #f59e0b;
+            opacity: 0.15;
+            margin-bottom: -20px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .error-sigil {
+            font-size: 3rem;
+            margin: 32px 0;
+            opacity: 0.35;
+            letter-spacing: 0.8em;
+            color: #f59e0b;
+            filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.3));
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            letter-spacing: 0.15em;
+            text-transform: lowercase;
+        }
+
+        .error-message {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.6;
+            opacity: 0.7;
+        }
+
+        .error-glyph {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.25;
+            letter-spacing: 0.4em;
+            margin-bottom: 32px;
+        }
+
+        @keyframes barrier-pulse {
+
+            0%,
+            100% {
+                opacity: 0.35;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.05);
+            }
+        }
+
+        .error-sigil {
+            animation: barrier-pulse 3s ease-in-out infinite;
+        }
+    </style>
+    {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#a78bfa' }}">
+    <div class="error-page">
+        <div class="error-card card">
+            <div class="error-code">403</div>
+            <div class="error-sigil">&#x26D4; &#x2042; &#x26D4;</div>
+            <h1 class="error-title">threshold barred</h1>
+            <p class="error-message">
+                This chamber is warded. You lack the requisite sigil to pass beyond this boundary.
+            </p>
+            <div class="error-glyph">&#x2726; &#x22C5; &#x22C5; &#x22C5; &#x2726;</div>
+            <a href="/" class="btn btn-primary" style="width: 100%;">&#x2190; withdraw</a>
+        </div>
+    </div>
+</body>
+
+</html>

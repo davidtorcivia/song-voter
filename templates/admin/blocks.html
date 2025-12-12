@@ -478,7 +478,7 @@
                     </div>
                     <div class="block-actions">
                         <div class="block-link">
-                            <input type="text" readonly value="{{ request.host_url }}vote/block/{{ block.slug }}"
+                            <input type="text" readonly value="https://{{ request.host }}/vote/block/{{ block.slug }}"
                                 id="link_{{ block.id }}">
                             <button class="copy-btn" onclick="copyLink({{ block.id }})" title="Copy">Copy</button>
                         </div>

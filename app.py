@@ -1310,6 +1310,26 @@ def admin_block_results(block_id):
     return jsonify({'block': block, 'results': results})
 
 
+# ============ Error Handlers ============
+
+@app.errorhandler(404)
+def not_found(e):
+    """Custom 404 error page."""
+    return render_template('error_404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Custom 500 error page."""
+    return render_template('error_500.html'), 500
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    """Custom 403 error page."""
+    return render_template('error_403.html'), 403
+
+
 # Initialize database on module import (works with gunicorn)
 db.init_db()
 

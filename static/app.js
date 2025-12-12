@@ -860,7 +860,7 @@ class SongVoter {
             this.mode = 'all';
             this.queue = [...this.songs];
         } else {
-            this.mode = this.modeSelect.value;
+            this.mode = this.modeSelect ? this.modeSelect.value : 'all';
 
             if (this.mode === 'all') {
                 this.queue = [...this.songs];

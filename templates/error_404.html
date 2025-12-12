@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost in the Void · {{ branding.title or 'Song Voter' }}</title>
+    <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}" type="image/x-icon">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .error-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 48px 24px;
+            background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 100%);
+        }
+
+        .error-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(15, 15, 15, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .error-code {
+            font-size: 6rem;
+            font-weight: 200;
+            letter-spacing: 0.5em;
+            color: var(--text-primary);
+            opacity: 0.15;
+            margin-bottom: -20px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .error-sigil {
+            font-size: 3rem;
+            margin: 32px 0;
+            opacity: 0.3;
+            letter-spacing: 0.8em;
+            color: var(--accent-color, #a78bfa);
+            filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.3));
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            letter-spacing: 0.15em;
+            text-transform: lowercase;
+        }
+
+        .error-message {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.6;
+            opacity: 0.7;
+        }
+
+        .error-glyph {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.25;
+            letter-spacing: 0.4em;
+            margin-bottom: 32px;
+        }
+
+        .error-actions {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .error-actions a {
+            flex: 1;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                opacity: 0.3;
+                filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.2));
+            }
+
+            50% {
+                opacity: 0.5;
+                filter: drop-shadow(0 0 12px rgba(167, 139, 250, 0.4));
+            }
+        }
+
+        .error-sigil {
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+    </style>
+    {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
+</head>
+
+<body style="--accent-color: {{ branding.accent_color or '#a78bfa' }}">
+    <div class="error-page">
+        <div class="error-card card">
+            <div class="error-code">404</div>
+            <div class="error-sigil">&#x25C7; &#x2606; &#x25C7;</div>
+            <h1 class="error-title">the path dissolves</h1>
+            <p class="error-message">
+                {{ message or 'This location exists only in fragments of memory. The pattern you seek has unraveled into
+                static.' }}
+            </p>
+            <div class="error-glyph">&#x2218; &#x22C5; &#x22C5; &#x22C5; &#x2218;</div>
+            <div class="error-actions">
+                <a href="javascript:history.back()" class="btn">&#x2190; retrace</a>
+                <a href="/" class="btn btn-primary">&#x2302; sanctuary</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
