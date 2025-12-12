@@ -688,10 +688,7 @@ def admin_logout():
     return redirect(url_for('index'))
 
 
-@app.route('/cast-receiver')
-def cast_receiver():
-    """Serve custom Cast receiver for Chromecast/Shield."""
-    return render_template('cast_receiver.html')
+
 
 
 @app.route('/admin/')
