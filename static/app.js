@@ -270,9 +270,7 @@ class SongVoter {
             return;
         }
 
-        // Show cast button immediately if enabled (SDK manages state later)
-        this.castBtn.style.display = 'inline-flex';
-
+        // Don't show button yet - wait for SDK to confirm device availability
         console.log('Initializing Cast with:', {
             enabled: window.CAST_ENABLED,
             appId: window.CAST_APP_ID,
@@ -286,7 +284,14 @@ class SongVoter {
             console.log('Cast SDK load failed, falling back to Remote Playback:', err);
             // Fallback to Remote Playback API
             this.useFallbackCast = true;
-            this.castBtn.style.display = 'inline-flex';
+            if ('remote' in this.audio) {
+                this.audio.remote.watchAvailability((available) => {
+                    this.castBtn.style.display = available ? 'inline-flex' : 'none';
+                }).catch(() => {
+                    // Remote Playback not supported
+                    this.castBtn.style.display = 'none';
+                });
+            }
         });
     }
 
