@@ -173,12 +173,20 @@ def before_request():
         return redirect(url_for('gate'))
 
 
-# Add CORS headers for audio (needed for Web Audio API visualizer)
+# Add CORS and security headers
 @app.after_request
-def add_cors_headers(response):
+def add_headers(response):
+    # CORS headers for audio (needed for Web Audio API visualizer)
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Range'
+    
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
     return response
 
 
@@ -653,6 +661,8 @@ def admin_login():
         
         admin = db.verify_admin(username, password)
         if admin:
+            # Session fixation prevention: clear session before setting new admin
+            session.clear()
             session.permanent = True  # Use 2-week session lifetime
             session['admin'] = admin
             session['site_access'] = True
@@ -673,6 +683,9 @@ def admin_setup():
         password = request.form.get('password', '')
         
         if username and password:
+            if len(password) < 8:
+                flash('Password must be at least 8 characters', 'error')
+                return render_template('admin/setup.html')
             db.create_admin(username, password)
             flash('Admin account created! Please login.', 'success')
             return redirect(url_for('admin_login'))
@@ -688,6 +701,121 @@ def admin_logout():
     return redirect(url_for('index'))
 
 
+@app.route('/admin/forgot-password', methods=['GET', 'POST'])
+def admin_forgot_password():
+    """Request password reset email."""
+    import email_service
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        # Always show success message to prevent email enumeration
+        flash('If an account exists with that email, a reset link has been sent.', 'success')
+        
+        if email:
+            admin = db.get_admin_by_email(email)
+            if admin:
+                # Check if primary owner - they cannot use password reset
+                if db.is_primary_owner(admin['id']):
+                    # Silently fail - don't reveal that this is the primary owner
+                    return redirect(url_for('admin_login'))
+                
+                # Check if SMTP is configured
+                if email_service.is_smtp_configured():
+                    # Generate token and send email
+                    token = db.create_password_reset_token(admin['id'])
+                    site_url = db.get_setting('site_url', request.host_url.rstrip('/'))
+                    reset_url = f"{site_url}/admin/reset-password/{token}"
+                    
+                    success, error = email_service.send_password_reset_email(
+                        admin['email'], reset_url, admin['username']
+                    )
+                    if not success:
+                        app.logger.error(f"Failed to send password reset email: {error}")
+        
+        return redirect(url_for('admin_login'))
+    
+    # Check if SMTP is configured - show warning if not
+    import email_service
+    smtp_configured = email_service.is_smtp_configured()
+    
+    return render_template('admin/forgot_password.html', smtp_configured=smtp_configured)
+
+
+@app.route('/admin/reset-password/<token>', methods=['GET', 'POST'])
+def admin_reset_password(token):
+    """Reset password using valid token."""
+    admin = db.validate_reset_token(token)
+    
+    if not admin:
+        flash('Invalid or expired reset link. Please request a new one.', 'error')
+        return redirect(url_for('admin_forgot_password'))
+    
+    # Double-check primary owner (should never get here, but safety)
+    if db.is_primary_owner(admin['id']):
+        flash('This account cannot use password reset. Use CLI tool instead.', 'error')
+        return redirect(url_for('admin_login'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm_password', '')
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters', 'error')
+        elif password != confirm:
+            flash('Passwords do not match', 'error')
+        else:
+            # Update password and invalidate token
+            db.update_admin_password(admin['id'], password)
+            db.invalidate_reset_token(token)
+            flash('Password updated successfully. Please login.', 'success')
+            return redirect(url_for('admin_login'))
+    
+    return render_template('admin/reset_password.html', admin=admin, token=token)
+
+
+@app.route('/admin/smtp/settings', methods=['POST'])
+@admin_or_owner_required
+def admin_smtp_settings():
+    """Save SMTP settings (admin/owner only)."""
+    import email_service
+    
+    data = request.get_json()
+    
+    # Save SMTP settings
+    db.set_setting('smtp_host', data.get('host', ''))
+    db.set_setting('smtp_port', data.get('port', '587'))
+    db.set_setting('smtp_username', data.get('username', ''))
+    db.set_setting('smtp_from', data.get('from_address', ''))
+    db.set_setting('smtp_tls', 'true' if data.get('tls', True) else 'false')
+    
+    # Only update password if provided (not masked placeholder)
+    password = data.get('password', '')
+    if password and password != '********':
+        encrypted = email_service.encrypt_smtp_password(password)
+        db.set_setting('smtp_password', encrypted)
+    
+    return jsonify({'success': True})
+
+
+@app.route('/admin/smtp/test', methods=['POST'])
+@admin_or_owner_required
+def admin_smtp_test():
+    """Send a test email (admin/owner only)."""
+    import email_service
+    
+    data = request.get_json()
+    test_email = data.get('email', '')
+    
+    if not test_email:
+        return jsonify({'success': False, 'error': 'No email address provided'}), 400
+    
+    success, error = email_service.test_smtp_connection(test_email)
+    
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': error}), 400
 
 
 
@@ -788,8 +916,26 @@ def admin_delete_asset(asset_type):
 
 @app.route('/uploads/<filename>')
 def serve_upload(filename):
-    """Serve uploaded files."""
-    return send_file(os.path.join(UPLOADS_DIR, filename))
+    """Serve uploaded files with path traversal protection."""
+    from werkzeug.utils import secure_filename
+    
+    # Sanitize filename to prevent path traversal
+    safe_filename = secure_filename(filename)
+    if not safe_filename or safe_filename != filename:
+        return jsonify({'error': 'Invalid filename'}), 404
+    
+    file_path = os.path.join(UPLOADS_DIR, safe_filename)
+    
+    # Extra validation: ensure resolved path is within UPLOADS_DIR
+    abs_uploads = os.path.abspath(UPLOADS_DIR)
+    abs_file = os.path.abspath(file_path)
+    if not abs_file.startswith(abs_uploads):
+        return jsonify({'error': 'Access denied'}), 403
+    
+    if not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    return send_file(file_path)
 
 
 @app.route('/admin/upload', methods=['POST'])
@@ -804,15 +950,26 @@ def admin_upload_song():
         return jsonify({'error': 'No file selected'}), 400
     
     # Check extension
-    filename = file.filename
+    from werkzeug.utils import secure_filename
+    original_filename = file.filename
+    filename = secure_filename(original_filename)
+    
+    if not filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+    
     if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
         return jsonify({'error': f'Unsupported format. Use: {", ".join(SUPPORTED_EXTENSIONS)}'}), 400
     
     # Ensure songs directory exists
     os.makedirs(SONGS_DIR, exist_ok=True)
     
-    # Save file
+    # Build safe path
     full_path = os.path.abspath(os.path.join(SONGS_DIR, filename))
+    
+    # Validate path stays within SONGS_DIR
+    abs_songs_dir = os.path.abspath(SONGS_DIR)
+    if not full_path.startswith(abs_songs_dir):
+        return jsonify({'error': 'Invalid path'}), 400
     
     # Check if already exists
     if os.path.exists(full_path):

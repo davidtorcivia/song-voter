@@ -5,7 +5,7 @@ test.describe('Admin Dashboard', () => {
         await page.goto('/admin/login');
 
         // Fill login form
-        await page.fill('input[name="email"]', 'test@example.com');
+        await page.fill('input[name="username"]', 'test@example.com');
         await page.fill('input[name="password"]', 'testpass123');
 
         // Submit
@@ -13,13 +13,13 @@ test.describe('Admin Dashboard', () => {
 
         // Should redirect to dashboard
         await expect(page).toHaveURL(/\/admin/);
-        await expect(page.locator('h1')).toContainText('Dashboard');
+        await expect(page.locator('h1')).toContainText('Admin');
     });
 
     test('can create vote block', async ({ page, context }) => {
         // Login first
         await page.goto('/admin/login');
-        await page.fill('input[name="email"]', 'test@example.com');
+        await page.fill('input[name="username"]', 'test@example.com');
         await page.fill('input[name="password"]', 'testpass123');
         await page.click('button[type="submit"]');
 
@@ -49,7 +49,7 @@ test.describe('Admin Dashboard', () => {
     test('can change settings', async ({ page }) => {
         // Login
         await page.goto('/admin/login');
-        await page.fill('input[name="email"]', 'test@example.com');
+        await page.fill('input[name="username"]', 'test@example.com');
         await page.fill('input[name="password"]', 'testpass123');
         await page.click('button[type="submit"]');
 

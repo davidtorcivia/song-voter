@@ -100,6 +100,19 @@ def init_db():
         )
     ''')
     
+    # Password reset tokens table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+        )
+    ''')
+    
     # Initialize default settings if not exist
     default_settings = {
         # Access
@@ -136,6 +149,14 @@ def init_db():
         
         # Timezone (IANA format, e.g. America/New_York)
         'timezone': '',
+        
+        # SMTP settings
+        'smtp_host': '',
+        'smtp_port': '587',
+        'smtp_username': '',
+        'smtp_password': '',  # Encrypted
+        'smtp_from': '',
+        'smtp_tls': 'true',
     }
     for key, value in default_settings.items():
         cursor.execute(
@@ -204,6 +225,11 @@ def init_db():
                 cursor.execute("UPDATE admins SET role = 'admin' WHERE id = ?", (admin_row['id'],))
                 print(f"Migration: Set admin ID {admin_row['id']} as admin")
         print("Migration: Assigned roles to existing admins")
+    
+    # Migration: Add email column to admins table
+    if 'email' not in admin_columns:
+        cursor.execute("ALTER TABLE admins ADD COLUMN email TEXT")
+        print("Migration: Added email column to admins table")
     
     # Create initial admin from environment if specified (always as owner)
     admin_user = os.environ.get('ADMIN_USER')
@@ -426,6 +452,148 @@ def get_first_admin():
     admin = dict(row) if row else None
     conn.close()
     return admin
+
+
+def get_admin_by_email(email):
+    """Get admin by email address."""
+    if not email:
+        return None
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, email, role FROM admins WHERE email = ?', (email.lower(),))
+    row = cursor.fetchone()
+    admin = dict(row) if row else None
+    conn.close()
+    return admin
+
+
+def update_admin_email(admin_id, email):
+    """Update an admin's email address."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE admins SET email = ? WHERE id = ?', (email.lower() if email else None, admin_id))
+    conn.commit()
+    conn.close()
+
+
+def update_admin_password(admin_id, new_password):
+    """Update an admin's password."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE admins SET password_hash = ? WHERE id = ?',
+        (generate_password_hash(new_password), admin_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def is_primary_owner(admin_id):
+    """Check if the given admin is the primary owner (lowest ID owner)."""
+    first_admin = get_first_admin()
+    if not first_admin:
+        return False
+    return first_admin['id'] == admin_id and first_admin['role'] == 'owner'
+
+
+# ============ Password Reset Tokens ============
+
+def create_password_reset_token(admin_id):
+    """
+    Create a password reset token for an admin.
+    Returns the plaintext token (to be sent via email).
+    Stores a hash of the token in the database.
+    Token expires in 1 hour.
+    """
+    import secrets
+    from datetime import datetime, timedelta
+    
+    # Generate a secure token
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = datetime.now() + timedelta(hours=1)
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Invalidate any existing unused tokens for this admin
+    cursor.execute(
+        'UPDATE password_reset_tokens SET used = 1 WHERE admin_id = ? AND used = 0',
+        (admin_id,)
+    )
+    
+    # Create new token
+    cursor.execute(
+        'INSERT INTO password_reset_tokens (admin_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        (admin_id, token_hash, expires_at.isoformat())
+    )
+    
+    conn.commit()
+    conn.close()
+    
+    return token
+
+
+def validate_reset_token(token):
+    """
+    Validate a password reset token.
+    Returns admin dict if valid and not expired, None otherwise.
+    """
+    from datetime import datetime
+    
+    if not token:
+        return None
+    
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.admin_id, t.expires_at, t.used, a.id, a.username, a.email, a.role
+        FROM password_reset_tokens t
+        JOIN admins a ON t.admin_id = a.id
+        WHERE t.token_hash = ?
+    ''', (token_hash,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+    
+    # Check if used
+    if row['used']:
+        return None
+    
+    # Check expiration
+    expires_at = datetime.fromisoformat(row['expires_at'])
+    if datetime.now() > expires_at:
+        return None
+    
+    return {
+        'id': row['id'],
+        'username': row['username'],
+        'email': row['email'],
+        'role': row['role']
+    }
+
+
+def invalidate_reset_token(token):
+    """Mark a password reset token as used."""
+    if not token:
+        return
+    
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE password_reset_tokens SET used = 1 WHERE token_hash = ?',
+        (token_hash,)
+    )
+    conn.commit()
+    conn.close()
 
 
 # ============ Songs ============

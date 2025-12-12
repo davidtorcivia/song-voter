@@ -17,7 +17,7 @@ def test_create_vote_block_success(auth_client, sample_songs):
     data = response.get_json()
     assert response.status_code == 200
     assert data['success'] is True
-    assert 'block_id' in data
+    assert 'id' in data
 
 
 def test_create_vote_block_no_songs(auth_client):
@@ -62,7 +62,7 @@ def test_vote_block_with_password(auth_client, sample_songs):
     })
     
     data = response.get_json()
-    block = db.get_vote_block_by_id(data['block_id'])
+    block = db.get_vote_block_by_id(data['id'])
     
     # Try accessing without password
     response = auth_client.get(f'/vote/block/{block["slug"]}')

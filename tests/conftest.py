@@ -58,9 +58,9 @@ def client(app):
 @pytest.fixture
 def auth_client(client):
     """Create an authenticated admin test client."""
-    # Login as admin
+    # Login as admin - note: form uses 'username' field, not 'email'
     client.post('/admin/login', data={
-        'email': 'test@example.com',
+        'username': 'test@example.com',
         'password': 'testpass123'
     }, follow_redirects=True)
     
@@ -98,4 +98,4 @@ def vote_block(auth_client, sample_songs):
     })
     
     data = response.get_json()
-    return db.get_vote_block_by_id(data['block_id'])
+    return db.get_vote_block_by_id(data['id'])

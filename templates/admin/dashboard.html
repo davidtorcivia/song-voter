@@ -202,6 +202,52 @@
             border-radius: 4px;
             background: var(--bg-elevated);
         }
+
+        /* Collapsible sections */
+        .collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 0;
+        }
+
+        .collapsible-header h2 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collapsible-header .chevron {
+            transition: transform 0.2s ease;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .collapsible-header.collapsed .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
+            max-height: 2000px;
+            opacity: 1;
+            margin-top: 16px;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+        }
+
+        .section-save-btn {
+            padding: 6px 14px;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 
@@ -255,302 +301,405 @@
 
         {% if role in ['owner', 'admin'] %}
         <!-- Access & Voting Settings (admin/owner only) -->
-        <div class="card admin-section">
-            <h2>Access & Voting</h2>
-
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Site Password</span>
-                </div>
-                <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
-                    placeholder="None" style="width: 120px;">
+        <div class="card admin-section" data-section="access">
+            <div class="collapsible-header" onclick="toggleSection('access')">
+                <h2><span class="chevron">▼</span> Access & Voting</h2>
+                <button class="btn btn-primary section-save-btn"
+                    onclick="event.stopPropagation(); saveAccessSettings()">Save</button>
             </div>
+            <div class="collapsible-content" id="access-content">
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Voting Restriction</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Site Password</span>
+                    </div>
+                    <input type="password" id="sitePassword" class="setting-input" value="{{ settings.site_password }}"
+                        placeholder="None" style="width: 120px;">
                 </div>
-                <select id="votingRestriction" class="setting-select">
-                    <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None</option>
-                    <option value="ip" {% if settings.voting_restriction=='ip' %}selected{% endif %}>By IP</option>
-                    <option value="cookie" {% if settings.voting_restriction=='cookie' %}selected{% endif %}>By Cookie
-                    </option>
-                </select>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Min Listen Time (sec)</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Voting Restriction</span>
+                    </div>
+                    <select id="votingRestriction" class="setting-select">
+                        <option value="none" {% if settings.voting_restriction=='none' %}selected{% endif %}>None
+                        </option>
+                        <option value="ip" {% if settings.voting_restriction=='ip' %}selected{% endif %}>By IP</option>
+                        <option value="cookie" {% if settings.voting_restriction=='cookie' %}selected{% endif %}>By
+                            Cookie
+                        </option>
+                    </select>
                 </div>
-                <div class="number-input-group">
-                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', -5)">-</button>
-                    <input type="number" id="minListenTime" class="setting-input"
-                        value="{{ settings.min_listen_time or '20' }}" min="0" max="300"
-                        style="width: 50px; text-align: center;">
-                    <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', 5)">+</button>
-                </div>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Disable Skip</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Min Listen Time (sec)</span>
+                    </div>
+                    <div class="number-input-group">
+                        <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', -5)">-</button>
+                        <input type="number" id="minListenTime" class="setting-input"
+                            value="{{ settings.min_listen_time or '20' }}" min="0" max="300"
+                            style="width: 50px; text-align: center;">
+                        <button type="button" class="number-btn" onclick="adjustNumber('minListenTime', 5)">+</button>
+                    </div>
                 </div>
-                <label class="toggle">
-                    <input type="checkbox" id="disableSkip" {% if settings.disable_skip=='true' %}checked{% endif %}>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Voting Window</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Disable Skip</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="disableSkip" {% if settings.disable_skip=='true' %}checked{% endif
+                            %}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <div style="display: flex; gap: 8px; flex-direction: column;">
-                    <input type="datetime-local" id="votingStart" class="setting-input"
-                        value="{{ settings.voting_start }}" style="width: 160px;" placeholder="Start">
-                    <input type="datetime-local" id="votingEnd" class="setting-input" value="{{ settings.voting_end }}"
-                        style="width: 160px;" placeholder="End">
-                </div>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Results Visibility</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Voting Window</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-direction: column;">
+                        <input type="datetime-local" id="votingStart" class="setting-input"
+                            value="{{ settings.voting_start }}" style="width: 160px;" placeholder="Start">
+                        <input type="datetime-local" id="votingEnd" class="setting-input"
+                            value="{{ settings.voting_end }}" style="width: 160px;" placeholder="End">
+                    </div>
                 </div>
-                <select id="resultsVisibility" class="setting-select">
-                    <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Public
-                    </option>
-                    <option value="until_voting_ends" {% if settings.results_visibility=='until_voting_ends'
-                        %}selected{% endif %}>After Voting</option>
-                    <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden
-                    </option>
-                </select>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Close Homepage</span>
-                    <span class="setting-desc">Show only title/description on homepage</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Results Visibility</span>
+                    </div>
+                    <select id="resultsVisibility" class="setting-select">
+                        <option value="public" {% if settings.results_visibility=='public' %}selected{% endif %}>Public
+                        </option>
+                        <option value="until_voting_ends" {% if settings.results_visibility=='until_voting_ends'
+                            %}selected{% endif %}>After Voting</option>
+                        <option value="hidden" {% if settings.results_visibility=='hidden' %}selected{% endif %}>Hidden
+                        </option>
+                    </select>
                 </div>
-                <label class="toggle">
-                    <input type="checkbox" id="homepageClosed" {% if settings.homepage_closed=='true' %}checked{% endif
-                        %}>
-                    <span class="toggle-slider"></span>
-                </label>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Close Homepage</span>
+                        <span class="setting-desc">Show only title/description on homepage</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="homepageClosed" {% if settings.homepage_closed=='true' %}checked{%
+                            endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
         </div>
 
         <!-- Branding -->
-        <div class="card admin-section">
-            <h2>Branding</h2>
-
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <span class="setting-label">Site Title</span>
-                <input type="text" id="siteTitle" class="setting-input"
-                    value="{{ settings.site_title or 'Song Voter' }}" style="width: 100%;">
+        <div class="card admin-section" data-section="branding">
+            <div class="collapsible-header collapsed" onclick="toggleSection('branding')">
+                <h2><span class="chevron">▼</span> Branding</h2>
+                <button class="btn btn-primary section-save-btn"
+                    onclick="event.stopPropagation(); saveBrandingSettings()">Save</button>
             </div>
+            <div class="collapsible-content collapsed" id="branding-content">
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <span class="setting-label">Description</span>
-                <input type="text" id="siteDescription" class="setting-input"
-                    value="{{ settings.site_description or '' }}" style="width: 100%;"
-                    placeholder="Vote on your favorite songs">
-            </div>
-
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <span class="setting-label">Site URL</span>
-                <input type="url" id="siteUrl" class="setting-input" value="{{ settings.site_url or '' }}"
-                    style="width: 100%;" placeholder="https://...">
-            </div>
-
-            <div class="setting-row">
-                <span class="setting-label">Favicon</span>
-                <div class="asset-upload">
-                    {% if settings.favicon %}
-                    <img src="{{ settings.favicon }}" class="asset-preview" id="faviconPreview">
-                    <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
-                        onclick="deleteAsset('favicon')">&#10005;</button>
-                    {% endif %}
-                    <input type="file" id="faviconFile" accept=".ico,.png,.jpg,.jpeg,.webp,.gif" hidden>
-                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
-                        onclick="document.getElementById('faviconFile').click()">Upload</button>
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Site Title</span>
+                    <input type="text" id="siteTitle" class="setting-input"
+                        value="{{ settings.site_title or 'Song Voter' }}" style="width: 100%;">
                 </div>
-            </div>
 
-            <div class="setting-row">
-                <span class="setting-label">OG Image</span>
-                <div class="asset-upload">
-                    {% if settings.og_image %}
-                    <img src="{{ settings.og_image }}" class="asset-preview" id="ogImagePreview">
-                    <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
-                        onclick="deleteAsset('og_image')">&#10005;</button>
-                    {% endif %}
-                    <input type="file" id="ogImageFile" accept=".png,.jpg,.jpeg,.webp" hidden>
-                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
-                        onclick="document.getElementById('ogImageFile').click()">Upload</button>
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Description</span>
+                    <input type="text" id="siteDescription" class="setting-input"
+                        value="{{ settings.site_description or '' }}" style="width: 100%;"
+                        placeholder="Vote on your favorite songs">
                 </div>
-            </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <div class="setting-info">
-                    <span class="setting-label">Tracking Code</span>
-                    <span class="setting-desc">Paste your analytics script (Umami, Plausible, etc.)</span>
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Site URL</span>
+                    <input type="url" id="siteUrl" class="setting-input" value="{{ settings.site_url or '' }}"
+                        style="width: 100%;" placeholder="https://...">
                 </div>
-                <textarea id="trackingCode" class="setting-input"
-                    style="width: 100%; height: 80px; font-family: monospace; font-size: 0.75rem; resize: vertical;"
-                    placeholder="<script src=&quot;...&quot;></script>">{{ settings.tracking_code or '' }}</textarea>
-            </div>
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <div class="setting-info">
-                    <span class="setting-label">Timezone</span>
-                    <span class="setting-desc">IANA format (e.g., America/New_York)</span>
+                <div class="setting-row">
+                    <span class="setting-label">Favicon</span>
+                    <div class="asset-upload">
+                        {% if settings.favicon %}
+                        <img src="{{ settings.favicon }}" class="asset-preview" id="faviconPreview">
+                        <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
+                            onclick="deleteAsset('favicon')">&#10005;</button>
+                        {% endif %}
+                        <input type="file" id="faviconFile" accept=".ico,.png,.jpg,.jpeg,.webp,.gif" hidden>
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                            onclick="document.getElementById('faviconFile').click()">Upload</button>
+                    </div>
                 </div>
-                <input type="text" id="timezone" class="setting-input" value="{{ settings.timezone or '' }}"
-                    style="width: 100%;" placeholder="Leave empty for server default">
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Accent Color</span>
+                <div class="setting-row">
+                    <span class="setting-label">OG Image</span>
+                    <div class="asset-upload">
+                        {% if settings.og_image %}
+                        <img src="{{ settings.og_image }}" class="asset-preview" id="ogImagePreview">
+                        <button type="button" class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;"
+                            onclick="deleteAsset('og_image')">&#10005;</button>
+                        {% endif %}
+                        <input type="file" id="ogImageFile" accept=".png,.jpg,.jpeg,.webp" hidden>
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                            onclick="document.getElementById('ogImageFile').click()">Upload</button>
+                    </div>
                 </div>
-                <div class="color-picker-widget">
-                    <div class="color-preview" id="colorPreview"
-                        style="background: {{ settings.accent_color or '#ffffff' }}"></div>
-                    <input type="text" id="accentColor" value="{{ settings.accent_color or '#ffffff' }}"
-                        class="color-input" placeholder="#RRGGBB">
-                    <div class="color-swatches">
-                        <div class="swatch" style="background: #60a5fa" data-color="#60a5fa" title="Cyber Blue"></div>
-                        <div class="swatch" style="background: #a78bfa" data-color="#a78bfa" title="Vibrant Purple">
-                        </div>
-                        <div class="swatch" style="background: #f472b6" data-color="#f472b6" title="Neon Pink"></div>
-                        <div class="swatch" style="background: #4ade80" data-color="#4ade80" title="Toxic Green"></div>
-                        <div class="swatch" style="background: #fb923c" data-color="#fb923c" title="Sunset Orange">
-                        </div>
-                        <div class="swatch" style="background: #ffffff" data-color="#ffffff" title="Clean White"></div>
-                        <div class="swatch"
-                            style="background: linear-gradient(135deg, #333 25%, #666 50%, #333 75%); position: relative;"
-                            data-color="" title="Disabled (No Accent)">
-                            <span
-                                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #999;">∅</span>
-                        </div>
-                        <div class="swatch custom-swatch-trigger" title="Custom Picker">
-                            <input type="color" id="systemColorPicker" class="hidden-picker"
-                                value="{{ settings.accent_color or '#ffffff' }}">
-                            <span>+</span>
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <div class="setting-info">
+                        <span class="setting-label">Tracking Code</span>
+                        <span class="setting-desc">Paste your analytics script (Umami, Plausible, etc.)</span>
+                    </div>
+                    <textarea id="trackingCode" class="setting-input"
+                        style="width: 100%; height: 80px; font-family: monospace; font-size: 0.75rem; resize: vertical;"
+                        placeholder="<script src=&quot;...&quot;></script>">{{ settings.tracking_code or '' }}</textarea>
+                </div>
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <div class="setting-info">
+                        <span class="setting-label">Timezone</span>
+                        <span class="setting-desc">IANA format (e.g., America/New_York)</span>
+                    </div>
+                    <input type="text" id="timezone" class="setting-input" value="{{ settings.timezone or '' }}"
+                        style="width: 100%;" placeholder="Leave empty for server default">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Accent Color</span>
+                    </div>
+                    <div class="color-picker-widget">
+                        <div class="color-preview" id="colorPreview"
+                            style="background: {{ settings.accent_color or '#ffffff' }}"></div>
+                        <input type="text" id="accentColor" value="{{ settings.accent_color or '#ffffff' }}"
+                            class="color-input" placeholder="#RRGGBB">
+                        <div class="color-swatches">
+                            <div class="swatch" style="background: #60a5fa" data-color="#60a5fa" title="Cyber Blue">
+                            </div>
+                            <div class="swatch" style="background: #a78bfa" data-color="#a78bfa" title="Vibrant Purple">
+                            </div>
+                            <div class="swatch" style="background: #f472b6" data-color="#f472b6" title="Neon Pink">
+                            </div>
+                            <div class="swatch" style="background: #4ade80" data-color="#4ade80" title="Toxic Green">
+                            </div>
+                            <div class="swatch" style="background: #fb923c" data-color="#fb923c" title="Sunset Orange">
+                            </div>
+                            <div class="swatch" style="background: #ffffff" data-color="#ffffff" title="Clean White">
+                            </div>
+                            <div class="swatch"
+                                style="background: linear-gradient(135deg, #333 25%, #666 50%, #333 75%); position: relative;"
+                                data-color="" title="Disabled (No Accent)">
+                                <span
+                                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: #999;">∅</span>
+                            </div>
+                            <div class="swatch custom-swatch-trigger" title="Custom Picker">
+                                <input type="color" id="systemColorPicker" class="hidden-picker"
+                                    value="{{ settings.accent_color or '#ffffff' }}">
+                                <span>+</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Visualizer Mode</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Visualizer Mode</span>
+                    </div>
+                    <select id="visualizerMode" class="setting-select">
+                        <option value="bars" {% if settings.visualizer_mode=='bars' %}selected{% endif %}>Bars</option>
+                        <option value="wave" {% if settings.visualizer_mode=='wave' %}selected{% endif %}>Oscilloscope
+                        </option>
+                        <option value="both" {% if settings.visualizer_mode=='both' %}selected{% endif %}>Both (Bars +
+                            Oscilloscope)</option>
+                    </select>
                 </div>
-                <select id="visualizerMode" class="setting-select">
-                    <option value="bars" {% if settings.visualizer_mode=='bars' %}selected{% endif %}>Bars</option>
-                    <option value="wave" {% if settings.visualizer_mode=='wave' %}selected{% endif %}>Oscilloscope
-                    </option>
-                    <option value="both" {% if settings.visualizer_mode=='both' %}selected{% endif %}>Both (Bars +
-                        Oscilloscope)</option>
-                </select>
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Visualizer Color</span>
-                    <span class="setting-desc">Leave unchecked for default VU green</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <label class="toggle">
-                        <input type="checkbox" id="visualizerColorEnabled" {% if settings.visualizer_color %}checked{%
-                            endif %}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <input type="color" id="visualizerColor" class="color-picker"
-                        value="{{ settings.visualizer_color or '#22c55e' }}" {% if not settings.visualizer_color
-                        %}disabled{% endif %}>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Visualizer Color</span>
+                        <span class="setting-desc">Leave unchecked for default VU green</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <label class="toggle">
+                            <input type="checkbox" id="visualizerColorEnabled" {% if settings.visualizer_color
+                                %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <input type="color" id="visualizerColor" class="color-picker"
+                            value="{{ settings.visualizer_color or '#22c55e' }}" {% if not settings.visualizer_color
+                            %}disabled{% endif %}>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Cast Settings -->
-        <div class="card admin-section">
-            <h2>Chromecast</h2>
-
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Enable Cast SDK</span>
-                    <span class="setting-desc">Allows casting to Chromecast, Shield, etc.</span>
-                </div>
-                <label class="toggle">
-                    <input type="checkbox" id="castEnabled" {% if settings.cast_enabled=='true' %}checked{% endif %}>
-                    <span class="toggle-slider"></span>
-                </label>
+        <div class="card admin-section" data-section="chromecast">
+            <div class="collapsible-header collapsed" onclick="toggleSection('chromecast')">
+                <h2><span class="chevron">▼</span> Chromecast</h2>
+                <button class="btn btn-primary section-save-btn"
+                    onclick="event.stopPropagation(); saveCastSettings()">Save</button>
             </div>
+            <div class="collapsible-content collapsed" id="chromecast-content">
 
-            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
-                <div class="setting-info">
-                    <span class="setting-label">Cast App ID</span>
-                    <span class="setting-desc">From <a href="https://cast.google.com/publish" target="_blank"
-                            style="color: var(--accent);">cast.google.com/publish</a> ($5 one-time)</span>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Enable Cast SDK</span>
+                        <span class="setting-desc">Allows casting to Chromecast, Shield, etc.</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="castEnabled" {% if settings.cast_enabled=='true' %}checked{% endif
+                            %}>
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
-                <input type="text" id="castAppId" class="setting-input" value="{{ settings.cast_app_id or '' }}"
-                    style="width: 100%; font-family: monospace;" placeholder="XXXXXXXX">
-            </div>
 
-            <div class="setting-row">
-                <div class="setting-info">
-                    <span class="setting-label">Receiver Type</span>
-                    <span class="setting-desc">Custom includes visualizer on TV</span>
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <div class="setting-info">
+                        <span class="setting-label">Cast App ID</span>
+                        <span class="setting-desc">From <a href="https://cast.google.com/publish" target="_blank"
+                                style="color: var(--accent);">cast.google.com/publish</a> ($5 one-time)</span>
+                    </div>
+                    <input type="text" id="castAppId" class="setting-input" value="{{ settings.cast_app_id or '' }}"
+                        style="width: 100%; font-family: monospace;" placeholder="XXXXXXXX">
                 </div>
-                <select id="castReceiverType" class="setting-select">
-                    <option value="default" {% if settings.cast_receiver_type=='default' or not
-                        settings.cast_receiver_type %}selected{% endif %}>Default</option>
-                    <option value="styled" {% if settings.cast_receiver_type=='styled' %}selected{% endif %}>Styled
-                    </option>
-                    <option value="custom" {% if settings.cast_receiver_type=='custom' %}selected{% endif %}>Custom
-                        (Visualizer)</option>
-                </select>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Receiver Type</span>
+                        <span class="setting-desc">Custom includes visualizer on TV</span>
+                    </div>
+                    <select id="castReceiverType" class="setting-select">
+                        <option value="default" {% if settings.cast_receiver_type=='default' or not
+                            settings.cast_receiver_type %}selected{% endif %}>Default</option>
+                        <option value="styled" {% if settings.cast_receiver_type=='styled' %}selected{% endif %}>Styled
+                        </option>
+                        <option value="custom" {% if settings.cast_receiver_type=='custom' %}selected{% endif %}>Custom
+                            (Visualizer)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <button id="saveSettings" class="btn btn-primary" style="width: 100%; margin-bottom: 24px;">Save
-            Settings</button>
+        <!-- SMTP Settings -->
+        <div class="card admin-section" data-section="smtp">
+            <div class="collapsible-header collapsed" onclick="toggleSection('smtp')">
+                <h2><span class="chevron">▼</span> Email (SMTP)</h2>
+                <button class="btn btn-primary section-save-btn"
+                    onclick="event.stopPropagation(); saveSmtpSettings()">Save</button>
+            </div>
+            <div class="collapsible-content collapsed" id="smtp-content">
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">SMTP Host</span>
+                    <input type="text" id="smtpHost" class="setting-input" value="{{ settings.smtp_host or '' }}"
+                        style="width: 100%;" placeholder="smtp.gmail.com">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">SMTP Port</span>
+                        <span class="setting-desc">587 (TLS) or 465 (SSL)</span>
+                    </div>
+                    <select id="smtpPort" class="setting-select">
+                        <option value="587" {% if settings.smtp_port=='587' or not settings.smtp_port %}selected{% endif
+                            %}>587</option>
+                        <option value="465" {% if settings.smtp_port=='465' %}selected{% endif %}>465</option>
+                        <option value="25" {% if settings.smtp_port=='25' %}selected{% endif %}>25</option>
+                    </select>
+                </div>
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Username</span>
+                    <input type="text" id="smtpUsername" class="setting-input"
+                        value="{{ settings.smtp_username or '' }}" style="width: 100%;" placeholder="user@example.com">
+                </div>
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">Password</span>
+                    <input type="password" id="smtpPassword" class="setting-input"
+                        value="{% if settings.smtp_password %}********{% endif %}" style="width: 100%;"
+                        placeholder="App password or SMTP password">
+                </div>
+
+                <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <span class="setting-label">From Address</span>
+                    <input type="email" id="smtpFrom" class="setting-input" value="{{ settings.smtp_from or '' }}"
+                        style="width: 100%;" placeholder="noreply@example.com">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-label">Use TLS</span>
+                        <span class="setting-desc">STARTTLS for port 587</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="smtpTls" {% if settings.smtp_tls !='false' %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row"
+                    style="flex-direction: column; align-items: flex-start; gap: 6px; border-top: 1px solid var(--border); padding-top: 16px; margin-top: 8px;">
+                    <span class="setting-label">Test Email</span>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <input type="email" id="smtpTestEmail" class="setting-input" style="flex: 1;"
+                            placeholder="test@example.com">
+                        <button type="button" class="btn btn-secondary" onclick="testSmtp()">Send Test</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
         {% endif %}
 
 
         {% if role in ['owner', 'admin'] %}
         <!-- Admin Users Section (admin/owner only) -->
-        <div class="card admin-section">
-            <h2>Users</h2>
-
-            <div class="admins-list" id="adminsList">
-                {% for admin in admins %}
-                <div class="admin-item" data-id="{{ admin.id }}" style="display: flex; align-items: center; gap: 8px;">
-                    <span class="admin-name">{{ admin.username }}</span>
-                    <span class="role-badge" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; 
-                        {% if admin.role == 'owner' %}background: #22c55e; color: #000;
-                        {% elif admin.role == 'admin' %}background: #3b82f6; color: #fff;
-                        {% else %}background: #64748b; color: #fff;{% endif %}">{{ admin.role }}</span>
-                    {% if admin.id != current_admin_id and (role == 'owner' or admin.role != 'owner') %}
-                    <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}" style="margin-left: auto;"
-                        title="Delete">&#10005;</button>
-                    {% endif %}
-                </div>
-                {% endfor %}
+        <div class="card admin-section" data-section="users">
+            <div class="collapsible-header" onclick="toggleSection('users')">
+                <h2><span class="chevron">▼</span> Users</h2>
             </div>
+            <div class="collapsible-content" id="users-content">
 
-            <div class="add-admin-form" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1; min-width: 80px;">
-                <input type="password" id="newAdminPassword" placeholder="Password" style="flex: 1; min-width: 80px;">
-                <select id="newAdminRole"
-                    style="padding: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary);">
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
-                    {% if role == 'owner' %}<option value="owner">Owner</option>{% endif %}
-                </select>
-                <button id="addAdmin" class="btn btn-secondary">Add</button>
+                <div class="admins-list" id="adminsList">
+                    {% for admin in admins %}
+                    <div class="admin-item" data-id="{{ admin.id }}"
+                        style="display: flex; align-items: center; gap: 8px;">
+                        <span class="admin-name">{{ admin.username }}</span>
+                        <span class="role-badge" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; 
+                    {% if admin.role == 'owner' %}background: #22c55e; color: #000;
+                    {% elif admin.role == 'admin' %}background: #3b82f6; color: #fff;
+                    {% else %}background: #64748b; color: #fff;{% endif %}">{{ admin.role }}</span>
+                        {% if admin.id != current_admin_id and (role == 'owner' or admin.role != 'owner') %}
+                        <button class="btn-icon btn-danger delete-admin" data-id="{{ admin.id }}"
+                            style="margin-left: auto;" title="Delete">&#10005;</button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="add-admin-form" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1; min-width: 80px;">
+                    <input type="email" id="newAdminEmail" placeholder="Email (optional)"
+                        style="flex: 1; min-width: 80px;">
+                    <input type="password" id="newAdminPassword" placeholder="Password"
+                        style="flex: 1; min-width: 80px;">
+                    <select id="newAdminRole"
+                        style="padding: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary);">
+                        <option value="editor">Editor</option>
+                        <option value="admin">Admin</option>
+                        {% if role == 'owner' %}<option value="owner">Owner</option>{% endif %}
+                    </select>
+                    <button id="addAdmin" class="btn btn-secondary">Add</button>
+                </div>
+
             </div>
         </div>
         {% endif %}
@@ -707,9 +856,63 @@
             colorPicker.disabled = !e.target.checked;
         });
 
-        // Save All Settings
-        document.getElementById('saveSettings').addEventListener('click', async () => {
-            const visualizerColorEnabled = document.getElementById('visualizerColorEnabled').checked;
+        // ============ Collapsible Sections ============
+
+        function toggleSection(sectionId) {
+            const header = document.querySelector(`[data-section="${sectionId}"] .collapsible-header`);
+            const content = document.getElementById(`${sectionId}-content`);
+
+            if (!header || !content) return;
+
+            const isCollapsed = header.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                header.classList.remove('collapsed');
+                content.classList.remove('collapsed');
+                localStorage.setItem(`admin_section_${sectionId}`, 'expanded');
+            } else {
+                header.classList.add('collapsed');
+                content.classList.add('collapsed');
+                localStorage.setItem(`admin_section_${sectionId}`, 'collapsed');
+            }
+        }
+
+        // Restore section states from localStorage
+        function restoreSectionStates() {
+            const sections = ['access', 'branding', 'chromecast', 'smtp', 'users'];
+            const defaultExpanded = ['access', 'users'];
+
+            sections.forEach(sectionId => {
+                const stored = localStorage.getItem(`admin_section_${sectionId}`);
+                const header = document.querySelector(`[data-section="${sectionId}"] .collapsible-header`);
+                const content = document.getElementById(`${sectionId}-content`);
+
+                if (!header || !content) return;
+
+                // Determine if should be expanded
+                let shouldExpand;
+                if (stored) {
+                    shouldExpand = stored === 'expanded';
+                } else {
+                    shouldExpand = defaultExpanded.includes(sectionId);
+                }
+
+                if (shouldExpand) {
+                    header.classList.remove('collapsed');
+                    content.classList.remove('collapsed');
+                } else {
+                    header.classList.add('collapsed');
+                    content.classList.add('collapsed');
+                }
+            });
+        }
+
+        // Call on page load
+        document.addEventListener('DOMContentLoaded', restoreSectionStates);
+
+        // ============ Per-Section Save Functions ============
+
+        async function saveAccessSettings() {
             const settings = {
                 site_password: document.getElementById('sitePassword').value,
                 voting_restriction: document.getElementById('votingRestriction').value,
@@ -719,6 +922,28 @@
                 voting_end: document.getElementById('votingEnd').value,
                 results_visibility: document.getElementById('resultsVisibility').value,
                 homepage_closed: document.getElementById('homepageClosed').checked ? 'true' : 'false',
+            };
+
+            try {
+                const res = await fetch('/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (res.ok) {
+                    showModal('Access & Voting settings saved!');
+                } else {
+                    showModal('Failed to save settings');
+                }
+            } catch (err) {
+                showModal('Error saving settings');
+            }
+        }
+
+        async function saveBrandingSettings() {
+            const visualizerColorEnabled = document.getElementById('visualizerColorEnabled').checked;
+            const settings = {
                 site_title: document.getElementById('siteTitle').value,
                 site_description: document.getElementById('siteDescription').value,
                 site_url: document.getElementById('siteUrl').value,
@@ -727,6 +952,27 @@
                 visualizer_color: visualizerColorEnabled ? document.getElementById('visualizerColor').value : '',
                 tracking_code: document.getElementById('trackingCode').value,
                 timezone: document.getElementById('timezone').value,
+            };
+
+            try {
+                const res = await fetch('/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (res.ok) {
+                    showModal('Branding settings saved!');
+                } else {
+                    showModal('Failed to save settings');
+                }
+            } catch (err) {
+                showModal('Error saving settings');
+            }
+        }
+
+        async function saveCastSettings() {
+            const settings = {
                 cast_enabled: document.getElementById('castEnabled').checked ? 'true' : 'false',
                 cast_app_id: document.getElementById('castAppId').value,
                 cast_receiver_type: document.getElementById('castReceiverType').value,
@@ -740,14 +986,69 @@
                 });
 
                 if (res.ok) {
-                    showModal('Settings saved!');
+                    showModal('Chromecast settings saved!');
                 } else {
                     showModal('Failed to save settings');
                 }
             } catch (err) {
                 showModal('Error saving settings');
             }
-        });
+        }
+
+        async function saveSmtpSettings() {
+            const password = document.getElementById('smtpPassword').value;
+            const settings = {
+                host: document.getElementById('smtpHost').value,
+                port: document.getElementById('smtpPort').value,
+                username: document.getElementById('smtpUsername').value,
+                password: password,
+                from_address: document.getElementById('smtpFrom').value,
+                tls: document.getElementById('smtpTls').checked,
+            };
+
+            try {
+                const res = await fetch('/admin/smtp/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (res.ok) {
+                    showModal('SMTP settings saved!');
+                } else {
+                    showModal('Failed to save SMTP settings');
+                }
+            } catch (err) {
+                showModal('Error saving SMTP settings');
+            }
+        }
+
+        async function testSmtp() {
+            const email = document.getElementById('smtpTestEmail').value;
+            if (!email) {
+                showModal('Please enter a test email address');
+                return;
+            }
+
+            try {
+                const res = await fetch('/admin/smtp/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showModal('Test email sent successfully!');
+                } else {
+                    showModal('Failed to send test email: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                showModal('Error sending test email');
+            }
+        }
+
 
         // Asset Upload
         document.getElementById('faviconFile').addEventListener('change', (e) => uploadAsset(e, 'favicon'));
