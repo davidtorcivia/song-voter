@@ -98,6 +98,49 @@ export ADMIN_PASS=yourpassword
 python app.py
 ```
 
+## Testing
+
+![Tests](https://github.com/davidtorcivia/song-voter/actions/workflows/tests.yml/badge.svg)
+
+### Backend Tests (pytest)
+
+```bash
+# Install test dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest -v
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Run specific test file
+pytest tests/test_voting.py -v
+```
+
+### Frontend Tests (Playwright)
+
+```bash
+# Install dependencies
+npm install
+
+# Install browsers
+npx playwright install
+
+# Run all E2E tests
+npm test
+
+# Run with UI mode
+npm run test:ui
+
+# Run in headed mode (see browser)
+npm run test:headed
+```
+
+### CI/CD
+
+Tests run automatically on every push and pull request via GitHub Actions. Check the status badge above or visit the Actions tab.
+
 ## File Naming Convention
 
 Songs are grouped by base name for comparison. Use this format:

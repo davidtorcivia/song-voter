@@ -259,8 +259,8 @@
         window.BLOCK_ID = {{ block.id }};
         window.INITIAL_SONGS = {{ songs | tojson | safe }};
         window.INITIAL_BASE_NAMES = [];
-        window.VISUALIZER_MODE = '{{ branding.visualizer_mode or "bars" }}';
-        window.VISUALIZER_COLOR = '{{ branding.visualizer_color or "" }}';
+        window.VISUALIZER_MODE = '{{ settings.visualizer_mode or "bars" }}';
+        window.VISUALIZER_COLOR = '{{ settings.visualizer_color or "" }}';
 
         // Block-specific settings (null = use global)
         window.BLOCK_DISABLE_SKIP = {% if block.disable_skip is not none %}{ { block.disable_skip } } {% else %} null{% endif %};
