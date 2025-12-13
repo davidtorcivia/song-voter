@@ -32,7 +32,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <link rel="stylesheet" href="/static/style.css?v=f5da1cf8?v=f5da1cf8">
+    <link rel="stylesheet" href="/static/style.css?v=f5da1cf8?v=f5da1cf8?v=f5da1cf8">
     {% if branding.tracking_code %}{{ branding.tracking_code|safe }}{% endif %}
 </head>
 
@@ -268,8 +268,8 @@
         window.VISUALIZER_COLOR = '{{ settings.visualizer_color or "" }}';
 
         // Block-specific settings (null = use global)
-        window.BLOCK_DISABLE_SKIP = {% if block.disable_skip is not none %}{ { block.disable_skip } } {% else %} null{% endif %};
-        window.BLOCK_MIN_LISTEN_TIME = {% if block.min_listen_time is not none %}{ { block.min_listen_time } } {% else %} null{% endif %};
+        window.BLOCK_DISABLE_SKIP = {{ block.disable_skip | tojson }};
+        window.BLOCK_MIN_LISTEN_TIME = {{ block.min_listen_time | tojson }};
 
         // Cast config
         window.CAST_ENABLED = {{ 'true' if branding.cast_enabled == 'true' else 'false' }};
