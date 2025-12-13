@@ -17,6 +17,7 @@ test.describe('Admin Dashboard', () => {
     });
 
     test('can create vote block', async ({ page, context }) => {
+        test.skip(!!process.env.CI, 'Requires songs in songs directory');
         // Login first
         await page.goto('/admin/login');
         await page.fill('input[name="username"]', 'test@example.com');
