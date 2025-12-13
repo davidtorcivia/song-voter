@@ -173,7 +173,7 @@ def before_request():
         return redirect(url_for('gate'))
 
 
-# Add CORS and security headers
+# Add CORS, security, and caching headers
 @app.after_request
 def add_headers(response):
     # CORS headers for audio (needed for Web Audio API visualizer)
@@ -186,6 +186,11 @@ def add_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Static asset caching (CSS, JS - with version query string for busting)
+    if request.path.startswith('/static/'):
+        # 1 year cache for static assets (use ?v=hash for cache busting)
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     
     return response
 

@@ -290,8 +290,9 @@ h1 {
     overflow: hidden;
 }
 
-/* Disable blur entirely for users who prefer reduced motion */
-@media (prefers-reduced-motion: reduce) {
+/* Disable blur for reduced motion OR mobile devices (GPU-intensive) */
+@media (prefers-reduced-motion: reduce),
+(max-width: 768px) {
     .card {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
@@ -1002,23 +1003,11 @@ label {
     color: #f87171;
 }
 
-/* Controversial indicator */
+/* Controversial indicator - references @keyframes pulse defined above */
 .controversial {
     margin-left: 4px;
     color: #f59e0b;
     animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
 }
 
 /* Results Legend */

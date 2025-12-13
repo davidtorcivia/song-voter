@@ -7,7 +7,12 @@
     <title>{{ song.base_name }} - {{ branding.title }}</title>
     <meta name="description" content="{{ branding.description }}">
     <link rel="icon" href="{{ branding.favicon or '/static/favicon.ico' }}">
-    <link rel="stylesheet" href="/static/style.css">
+
+    <!-- Preload font for faster render -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="stylesheet" href="/static/style.css?v=b2560fab">
     <style>
         /* Play page specific styles to ensure proper rendering */
         .play-page .visualizer-container {

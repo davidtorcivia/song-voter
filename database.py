@@ -113,6 +113,15 @@ def init_db():
         )
     ''')
     
+    # Performance indexes (CREATE INDEX IF NOT EXISTS is idempotent)
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_songs_base_name ON songs(base_name)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_songs_uploaded_by ON songs(uploaded_by)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_song_id ON votes(song_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_block_id ON votes(block_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_voter_id ON votes(voter_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_vote_block_songs_song ON vote_block_songs(song_id)')
+    
+    
     # Initialize default settings if not exist
     default_settings = {
         # Access

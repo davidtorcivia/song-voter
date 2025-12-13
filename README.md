@@ -98,6 +98,12 @@ export ADMIN_PASS=yourpassword
 python app.py
 ```
 
+After modifying `static/style.css` or `static/app.js`, update cache-busting hashes:
+
+```bash
+python update_static_hashes.py
+```
+
 ## Testing
 
 ![Tests](https://github.com/davidtorcivia/song-voter/actions/workflows/tests.yml/badge.svg)

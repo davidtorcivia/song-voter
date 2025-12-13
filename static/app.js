@@ -1021,9 +1021,6 @@ class SongVoter {
         // Clear waveform data (fade-out already happened in playNext)
         this.waveData = null;
 
-        // Load audio
-        this.audio.src = `/api/songs/${song.id}/audio`;
-        this.audio.load();
 
         // Fetch waveform and smoothly fade in once loaded
         fetch(`/api/songs/${song.id}/waveform`)
@@ -1109,10 +1106,17 @@ class SongVoter {
     }
 
     animateWaveform() {
-        // Only draw if playing OR if dirty (seek/hover)
-        if (this.isPlaying || this.waveformDirty) {
+        // Throttle to ~15fps when playing (saves CPU/battery)
+        // Full 60fps only during active interaction (seeking/hover)
+        const now = performance.now();
+        const elapsed = now - (this.lastWaveformDraw || 0);
+        const targetFps = (this.waveformDirty || !this.isPlaying) ? 60 : 15;
+        const frameInterval = 1000 / targetFps;
+
+        if (elapsed >= frameInterval && (this.isPlaying || this.waveformDirty)) {
             this.drawWaveform();
             this.waveformDirty = false;
+            this.lastWaveformDraw = now;
         }
         this.waveformRAF = requestAnimationFrame(() => this.animateWaveform());
     }
