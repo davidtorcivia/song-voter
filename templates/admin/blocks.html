@@ -829,7 +829,18 @@
             }
         }
 
-        // ... (clearEditPassword and clearEditExpires helpers remain the same) ...
+
+        // Clear button helpers for edit modal
+        function clearEditPassword() {
+            document.getElementById('editBlockPassword').value = '';
+            document.getElementById('editBlockPassword').dataset.clearPassword = 'true';
+        }
+
+        function clearEditExpires() {
+            document.getElementById('editBlockExpires').value = '';
+            document.getElementById('editBlockExpires').dataset.clearExpires = 'true';
+        }
+
 
         async function saveBlock() {
             clearEditError();
