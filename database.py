@@ -115,7 +115,7 @@ def init_db():
     
     # Performance indexes (CREATE INDEX IF NOT EXISTS is idempotent)
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_songs_base_name ON songs(base_name)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_songs_uploaded_by ON songs(uploaded_by)')
+    # Removed invalid index on non-existent column: uploaded_by
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_song_id ON votes(song_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_block_id ON votes(block_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_votes_voter_id ON votes(voter_id)')
@@ -1135,6 +1135,32 @@ def update_vote_block(block_id, name=None, password=None, clear_password=False,
     updated = cursor.rowcount > 0
     conn.close()
     return updated
+
+
+def update_vote_block_songs(block_id, song_ids):
+    """Update the list of songs for a vote block."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Delete existing associations
+        cursor.execute('DELETE FROM vote_block_songs WHERE block_id = ?', (block_id,))
+        
+        # Insert new associations
+        if song_ids:
+            cursor.executemany(
+                'INSERT INTO vote_block_songs (block_id, song_id) VALUES (?, ?)',
+                [(block_id, song_id) for song_id in song_ids]
+            )
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating block songs: {e}")
+        return False
+    finally:
+        conn.close()
 
 
 

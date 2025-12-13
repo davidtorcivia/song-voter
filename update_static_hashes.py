@@ -13,8 +13,9 @@ TEMPLATE_DIR = 'templates'
 
 # Files to hash and their patterns in templates
 ASSETS = {
-    'style.css': r'/static/style\.css\?v=[a-f0-9]+',
-    'app.js': r'/static/app\.js\?v=[a-f0-9]+',
+    # Match /static/style.css with optional query string
+    'style.css': r'/static/style\.css(?:\\?v=[a-f0-9]+)?',
+    'app.js': r'/static/app\.js(?:\\?v=[a-f0-9]+)?',
 }
 
 # Templates that include each asset

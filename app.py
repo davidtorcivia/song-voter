@@ -188,8 +188,9 @@ def add_headers(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     
     # Static asset caching (CSS, JS - with version query string for busting)
-    if request.path.startswith('/static/'):
+    if request.path.startswith('/static/') or (request.path.startswith('/uploads/') and request.query_string):
         # 1 year cache for static assets (use ?v=hash for cache busting)
+        # Uploads only cached if they have a query string (version)
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     
     return response
@@ -894,8 +895,10 @@ def admin_upload_asset():
     filepath = os.path.join(UPLOADS_DIR, filename)
     file.save(filepath)
     
-    # Update setting with path
-    asset_url = f'/uploads/{filename}'
+    # Update setting with path (append timestamp for cache busting)
+    import time
+    timestamp = int(time.time())
+    asset_url = f'/uploads/{filename}?v={timestamp}'
     db.set_setting(asset_type, asset_url)
     
     return jsonify({'success': True, 'url': asset_url})
@@ -1447,6 +1450,15 @@ def admin_update_block(block_id):
             min_listen_time=min_listen_time,
             clear_min_listen_time=clear_min_listen_time
         )
+        
+        # Update songs if provided
+        song_ids = data.get('song_ids')
+        if song_ids is not None:
+            # Ensure it's a list
+            if not isinstance(song_ids, list):
+                return jsonify({'error': 'song_ids must be a list'}), 400
+            db.update_vote_block_songs(block_id, song_ids)
+            
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

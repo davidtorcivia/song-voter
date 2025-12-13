@@ -687,12 +687,11 @@
 
                 <div class="add-admin-form" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1; min-width: 80px;">
-                    <input type="email" id="newAdminEmail" class="setting-input" placeholder="Email (optional)"
+                    <input type="email" id="newAdminEmail" placeholder="Email (optional)"
                         style="flex: 1; min-width: 80px;">
-                    <input type="password" id="newAdminPassword" class="setting-input" placeholder="Password"
+                    <input type="password" id="newAdminPassword" placeholder="Password"
                         style="flex: 1; min-width: 80px;">
-                    <select id="newAdminRole"
-                        style="padding: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary);">
+                    <select id="newAdminRole">
                         <option value="editor">Editor</option>
                         <option value="admin">Admin</option>
                         {% if role == 'owner' %}<option value="owner">Owner</option>{% endif %}
