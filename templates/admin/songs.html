@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Songs - Song Voter</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         /* Admin-specific overrides */
@@ -642,9 +641,6 @@
 
                     const response = await fetch('/admin/songs/upload', {
                         method: 'POST',
-                        headers: {
-                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                        },
                         body: formData
                     });
 
@@ -724,34 +720,28 @@
 
             for (const cb of selected) {
                 try {
-                    try {
-                        const res = await fetch(`/admin/songs/${cb.dataset.id}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                            }
-                        });
-                        const data = await res.json();
+                    const res = await fetch(`/admin/songs/${cb.dataset.id}`, { method: 'DELETE' });
+                    const data = await res.json();
 
-                        if (res.ok) {
-                            deleted++;
-                            cb.closest('tr').remove();
-                        } else {
-                            errors.push(data.error || 'Unknown error');
-                        }
-                    } catch (err) {
-                        errors.push(err.message);
+                    if (res.ok) {
+                        deleted++;
+                        cb.closest('tr').remove();
+                    } else {
+                        errors.push(data.error || 'Unknown error');
                     }
+                } catch (err) {
+                    errors.push(err.message);
                 }
+            }
 
             updateBulkBar();
 
-                if (errors.length > 0) {
-                    showModal(`Deleted ${deleted} song(s). ${errors.length} error(s): ${errors[0]}`);
-                } else {
-                    showToast(`Deleted ${deleted} song(s)`, 'success');
-                }
-            });
+            if (errors.length > 0) {
+                showModal(`Deleted ${deleted} song(s). ${errors.length} error(s): ${errors[0]}`);
+            } else {
+                showToast(`Deleted ${deleted} song(s)`, 'success');
+            }
+        });
 
         // Individual delete
         document.querySelectorAll('.delete-song').forEach(btn => {
@@ -761,25 +751,19 @@
 
                 const id = e.target.dataset.id;
                 try {
-                    try {
-                        const res = await fetch(`/admin/songs/${id}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                            }
-                        });
-                        const data = await res.json();
+                    const res = await fetch(`/admin/songs/${id}`, { method: 'DELETE' });
+                    const data = await res.json();
 
-                        if (res.ok) {
-                            e.target.closest('tr').remove();
-                            showToast('Song deleted', 'success');
-                        } else {
-                            showModal(data.error || 'Failed to delete song');
-                        }
-                    } catch (err) {
-                        showModal('Network error');
+                    if (res.ok) {
+                        e.target.closest('tr').remove();
+                        showToast('Song deleted', 'success');
+                    } else {
+                        showModal(data.error || 'Failed to delete song');
                     }
-                });
+                } catch (err) {
+                    showModal('Network error');
+                }
+            });
         });
 
         // Scan folder
@@ -788,12 +772,7 @@
             document.getElementById('scanBtn').textContent = 'Scanning...';
 
             try {
-                const res = await fetch('/api/scan', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
+                const res = await fetch('/api/scan', { method: 'POST' });
                 const data = await res.json();
 
                 if (data.success) {
@@ -817,12 +796,7 @@
             btn.textContent = 'Working...';
 
             try {
-                const res = await fetch('/admin/songs/regenerate-waveforms', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
+                const res = await fetch('/admin/songs/regenerate-waveforms', { method: 'POST' });
                 const data = await res.json();
 
                 if (data.success) {
@@ -845,12 +819,7 @@
             btn.textContent = 'Working...';
 
             try {
-                const res = await fetch('/admin/songs/renormalize', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
+                const res = await fetch('/admin/songs/renormalize', { method: 'POST' });
                 const data = await res.json();
 
                 if (data.success) {
@@ -873,12 +842,7 @@
             btn.textContent = 'Scanning...';
 
             try {
-                const res = await fetch('/admin/songs/cleanup', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
+                const res = await fetch('/admin/songs/cleanup', { method: 'POST' });
                 const data = await res.json();
 
                 if (data.success) {

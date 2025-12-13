@@ -4,7 +4,6 @@ import time
 from datetime import timedelta
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, send_file, Response, session, redirect, url_for, flash
-from flask_wtf.csrf import CSRFProtect
 import database as db
 import waveform
 import audio_normalize
@@ -57,7 +56,6 @@ class VoteRateLimiter:
 vote_limiter = VoteRateLimiter(max_votes=30, window_secs=300, max_ips=10000)
 
 app = Flask(__name__)
-csrf = CSRFProtect(app)
 
 # Data directory for persistent files
 DATA_DIR = os.environ.get('DATA_DIR', 'data')
@@ -81,12 +79,6 @@ else:
 
 # Session config - 2 week lifetime
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=14)
-# Secure cookies
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-)
 
 # Configure songs directory from environment or default
 SONGS_DIR = os.environ.get('SONGS_DIR', 'songs')
@@ -185,33 +177,15 @@ def before_request():
 @app.after_request
 def add_headers(response):
     # CORS headers for audio (needed for Web Audio API visualizer)
-    # Restrict to audio/static endpoints if possible, but for now keep * for compatibility
-    if request.path.startswith('/api/songs/') and 'audio' in request.path:
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Range'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Range'
     
     # Security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    
-    # Content Security Policy (Example - adjust based on needs)
-    # Allowing unsafe-inline because of extensive use in templates/Alpine.js
-    csp = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; "
-        "media-src 'self' blob: data:; "
-        "connect-src 'self'; "
-        "object-src 'none';"
-    )
-    response.headers['Content-Security-Policy'] = csp
-    
-    # HSTS (1 year)
-    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     
     return response
 
@@ -429,22 +403,12 @@ def get_audio(song_id):
         return jsonify({'error': 'Song not found'}), 404
     
     full_path = song['full_path']
-    
-    # Path Traversal Protection
-    # Verify file is within permitted directories
-    abs_file = os.path.abspath(full_path)
-    abs_songs = os.path.abspath(SONGS_DIR)
-    abs_norm = os.path.abspath(audio_normalize.NORMALIZED_DIR)
-    
-    if not (abs_file.startswith(abs_songs) or abs_file.startswith(abs_norm)):
-        app.logger.error(f"Path traversal attempt blocked: {full_path}")
-        return jsonify({'error': 'Access denied'}), 403
-        
     if not os.path.exists(full_path):
         return jsonify({'error': 'Audio file not found'}), 404
     
     # Use normalized version if available
     try:
+        import audio_normalize
         full_path = audio_normalize.get_or_normalize(full_path)
     except Exception as e:
         print(f"Normalization error: {e}")
@@ -989,12 +953,9 @@ def admin_upload_song():
     from werkzeug.utils import secure_filename
     original_filename = file.filename
     
-    # Check for path traversal attempts explicitly
+    # Reject path traversal attempts explicitly
     if '..' in original_filename or '/' in original_filename or '\\' in original_filename:
-        # If secure_filename would strip everything or it looks malicious
-        if secure_filename(original_filename) != original_filename:
-             # Just a stricter check for the test case
-             pass
+        return jsonify({'error': 'Invalid filename - path traversal detected'}), 400
     
     filename = secure_filename(original_filename)
     

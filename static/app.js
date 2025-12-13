@@ -106,9 +106,6 @@ class SongVoter {
         // Cache accent color
         this.accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim() || '#ffffff';
 
-        // CSRF Token
-        this.csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
         // Preload next song for instant transitions
         this.preloadAudio = new Audio();
         this.preloadAudio.preload = 'auto';
@@ -817,12 +814,7 @@ class SongVoter {
         }
 
         try {
-            const response = await fetch('/api/scan', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': this.csrfToken
-                }
-            });
+            const response = await fetch('/api/scan', { method: 'POST' });
             const data = await response.json();
 
             if (data.success) {
@@ -1342,10 +1334,7 @@ class SongVoter {
         try {
             const response = await fetch(`/api/songs/${this.currentSong.id}/vote`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 

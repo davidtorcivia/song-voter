@@ -24,8 +24,7 @@
             {% endfor %}
             {% endwith %}
 
-            <form method="POST" class="gate-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <form method="POST" class="admin-form">
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required autofocus>

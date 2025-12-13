@@ -80,7 +80,6 @@
             <p class="auth-subtitle">Enter password to continue</p>
 
             <form class="auth-form" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <input type="password" name="password" class="auth-input" placeholder="Password" autofocus required>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Continue →</button>
             </form>
