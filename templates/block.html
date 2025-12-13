@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ block.name }} - {{ branding.title or 'Song Voter' }}</title>
     <meta name="description" content="{{ branding.description or 'Vote on your favorite song versions' }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Open Graph / Twitter -->
     <meta property="og:type" content="website">

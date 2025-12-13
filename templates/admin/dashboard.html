@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Song Voter</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         /* Admin-specific overrides */
@@ -687,9 +688,9 @@
 
                 <div class="add-admin-form" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <input type="text" id="newAdminUsername" placeholder="Username" style="flex: 1; min-width: 80px;">
-                    <input type="email" id="newAdminEmail" placeholder="Email (optional)"
+                    <input type="email" id="newAdminEmail" class="setting-input" placeholder="Email (optional)"
                         style="flex: 1; min-width: 80px;">
-                    <input type="password" id="newAdminPassword" placeholder="Password"
+                    <input type="password" id="newAdminPassword" class="setting-input" placeholder="Password"
                         style="flex: 1; min-width: 80px;">
                     <select id="newAdminRole"
                         style="padding: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary);">
@@ -927,7 +928,10 @@
             try {
                 const res = await fetch('/admin/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify(settings)
                 });
 
@@ -957,7 +961,10 @@
             try {
                 const res = await fetch('/admin/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify(settings)
                 });
 
@@ -981,7 +988,10 @@
             try {
                 const res = await fetch('/admin/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify(settings)
                 });
 
@@ -1009,7 +1019,10 @@
             try {
                 const res = await fetch('/admin/smtp/settings', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify(settings)
                 });
 
@@ -1033,7 +1046,10 @@
             try {
                 const res = await fetch('/admin/smtp/test', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify({ email })
                 });
 
@@ -1065,6 +1081,9 @@
             try {
                 const res = await fetch('/admin/upload-asset', {
                     method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: formData
                 });
 
@@ -1083,7 +1102,12 @@
             const confirmed = await showConfirm(`Delete ${type.replace('_', ' ')}?`);
             if (!confirmed) return;
 
-            const res = await fetch(`/admin/delete-asset/${type}`, { method: 'DELETE' });
+            const res = await fetch(`/admin/delete-asset/${type}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
             if (res.ok) {
                 location.reload();
             }
@@ -1105,7 +1129,10 @@
 
                 const res = await fetch('/admin/admins', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify({ username, password, role })
                 });
 
@@ -1125,7 +1152,12 @@
                 if (!confirmed) return;
 
                 const id = e.target.dataset.id;
-                const res = await fetch(`/admin/admins/${id}`, { method: 'DELETE' });
+                const res = await fetch(`/admin/admins/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
 
                 if (res.ok) {
                     e.target.closest('.admin-item').remove();

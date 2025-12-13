@@ -23,7 +23,11 @@ def app():
     
     # Override environment variables
     os.environ['DATA_DIR'] = test_data_dir
-    os.environ['DB_PATH'] = test_db_path
+    os.environ['DATABASE_PATH'] = test_db_path
+    
+    # Monkeypatch database path since it's already imported
+    old_db_path = db.DATABASE_PATH
+    db.DATABASE_PATH = test_db_path
     
     # Create the app
     test_app = app_module.app
@@ -40,6 +44,9 @@ def app():
     db.create_admin('test@example.com', 'testpass123', 'owner')
     
     yield test_app
+    
+    # Cleanup
+    db.DATABASE_PATH = old_db_path  # Restore original path
     
     # Cleanup
     try:

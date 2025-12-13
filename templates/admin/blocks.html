@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vote Blocks - Admin - Song Voter</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="/static/style.css">
     <style>
         .admin-container {
@@ -605,7 +606,10 @@
             try {
                 const res = await fetch('/admin/blocks', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify({
                         name,
                         song_ids: songIds,
@@ -654,7 +658,12 @@
             if (!confirmed) return;
 
             try {
-                const res = await fetch(`/admin/blocks/${blockId}`, { method: 'DELETE' });
+                const res = await fetch(`/admin/blocks/${blockId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
                 if (res.ok) {
                     document.querySelector(`.block-item[data-id="${blockId}"]`).remove();
 
@@ -837,7 +846,10 @@
             try {
                 const res = await fetch(`/admin/blocks/${blockId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
                     body: JSON.stringify({
                         name,
                         password: password || null,
