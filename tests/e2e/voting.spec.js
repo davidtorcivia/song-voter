@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+// Skip voting tests in CI - they require songs in the songs directory
 test.describe('Voting Flow', () => {
+    test.skip(({ }, testInfo) => !!process.env.CI, 'Requires songs directory with audio files');
+
     test('can complete voting flow', async ({ page }) => {
         await page.goto('/');
 
