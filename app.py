@@ -1453,14 +1453,11 @@ def admin_update_block(block_id):
         
         # Update songs if provided
         song_ids = data.get('song_ids')
-        print(f"DEBUG admin_update_block: block_id={block_id}, song_ids={song_ids}")
         if song_ids is not None:
             # Ensure it's a list
             if not isinstance(song_ids, list):
                 return jsonify({'error': 'song_ids must be a list'}), 400
-            print(f"DEBUG calling update_vote_block_songs with {len(song_ids)} songs")
-            result = db.update_vote_block_songs(block_id, song_ids)
-            print(f"DEBUG update_vote_block_songs result: {result}")
+            db.update_vote_block_songs(block_id, song_ids)
             
         return jsonify({'success': True})
     except Exception as e:
